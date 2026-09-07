@@ -13,8 +13,8 @@ still returns the static stub, though — nothing calls the LLM yet.
 Current state:
 
 - `config/persona/endra.md` — ENDRA's system prompt, written in Turkish
-  as a first draft; Ender has not reviewed/edited it yet. Plain text
-  config, not code, so it's a simple edit whenever he does.
+  and reviewed/approved by Ender on 2026-09-08. Plain text config, not
+  code, so it stays a simple edit if it needs to change later.
 - `apps/core/src/persona/load-persona.ts` — `loadPersona()` reads it
   (path overridable via `ENDRA_PERSONA_PATH`), with an embedded fallback
   if the file is missing at runtime.

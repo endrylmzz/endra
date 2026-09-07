@@ -12,12 +12,12 @@ Completed:
 
 Changed:
 
-- Added `config/persona/endra.md` — a first-draft ENDRA system prompt
-  (Turkish: alter-ego framing, tone, pushes back on weak ideas, always
-  confirms risky/irreversible actions, uses tools instead of just
-  describing them). Drafted per CLAUDE.md section 15; Ender has not
-  reviewed/edited it yet. Plain text, not code, so it's editable
-  without touching Core.
+- Added `config/persona/endra.md` — ENDRA's system prompt (Turkish:
+  alter-ego framing, tone, pushes back on weak ideas, always confirms
+  risky/irreversible actions, uses tools instead of just describing
+  them). Drafted per CLAUDE.md section 15, reviewed and approved by
+  Ender on 2026-09-08 with no changes requested. Plain text, not code,
+  so it's editable without touching Core.
 - Added `apps/core/src/persona/load-persona.ts` (`loadPersona()`) to
   read it at runtime, with an embedded fallback persona if the file is
   missing (e.g. a deployment that only ships `apps/core`).

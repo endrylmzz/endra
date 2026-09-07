@@ -7,9 +7,9 @@ Overall Progress:
 24% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-CORE-007 System persona config — `config/persona/endra.md` (draft system
-prompt, pending Ender's review/edits) + `loadPersona()` loader in
-`apps/core`. Not yet wired into `/api/v1/message`.
+CORE-007 System persona config — `config/persona/endra.md` (system
+prompt, reviewed and approved by Ender on 2026-09-08) + `loadPersona()`
+loader in `apps/core`. Not yet wired into `/api/v1/message`.
 
 Currently Working:
 (none)
