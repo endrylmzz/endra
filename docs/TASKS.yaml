@@ -1,0 +1,613 @@
+# ENDRA development roadmap - machine-readable task tracker.
+# Status values: pending | in_progress | blocked | done | skipped
+# Priority values: critical | high | medium | low
+#
+# This file is parsed by scripts/status.mjs and scripts/next.mjs.
+# Keep the format flat and simple - see docs/ARCHITECTURE.md if you need
+# to change the schema.
+
+project: endra
+
+current_phase: 0
+
+tasks:
+  # ---------------------------------------------------------------------
+  # Phase 0 - Foundation
+  # ---------------------------------------------------------------------
+  - id: FOUNDATION-001
+    title: Initialize git repository
+    phase: 0
+    status: done
+    priority: critical
+
+  - id: FOUNDATION-002
+    title: Create monorepo directory structure
+    phase: 0
+    status: done
+    priority: critical
+    depends_on:
+      - FOUNDATION-001
+
+  - id: FOUNDATION-003
+    title: Set up TypeScript workspace (npm workspaces + base tsconfig)
+    phase: 0
+    status: done
+    priority: critical
+    depends_on:
+      - FOUNDATION-002
+
+  - id: FOUNDATION-004
+    title: Set up lint and formatting (ESLint + Prettier)
+    phase: 0
+    status: done
+    priority: high
+    depends_on:
+      - FOUNDATION-003
+
+  - id: FOUNDATION-005
+    title: Set up test runner (Vitest) with one smoke test per workspace
+    phase: 0
+    status: done
+    priority: high
+    depends_on:
+      - FOUNDATION-003
+
+  - id: FOUNDATION-006
+    title: Create .env.example and env conventions
+    phase: 0
+    status: done
+    priority: medium
+    depends_on:
+      - FOUNDATION-002
+
+  - id: FOUNDATION-007
+    title: Create documentation system (CLAUDE.md, ARCHITECTURE.md, PROJECT_STATUS.md, TASKS.yaml, NEXT_ACTION.md, DEVLOG.md)
+    phase: 0
+    status: done
+    priority: critical
+    depends_on:
+      - FOUNDATION-002
+
+  - id: FOUNDATION-008
+    title: Create ADR system and record initial architecture decisions
+    phase: 0
+    status: done
+    priority: high
+    depends_on:
+      - FOUNDATION-007
+
+  - id: FOUNDATION-009
+    title: Create status/next/doctor scripts
+    phase: 0
+    status: done
+    priority: high
+    depends_on:
+      - FOUNDATION-007
+
+  - id: FOUNDATION-010
+    title: Create README
+    phase: 0
+    status: done
+    priority: medium
+    depends_on:
+      - FOUNDATION-002
+
+  - id: FOUNDATION-011
+    title: Verify Phase 0 exit criteria (install, test, status, next, doctor all run clean)
+    phase: 0
+    status: done
+    priority: critical
+    depends_on:
+      - FOUNDATION-004
+      - FOUNDATION-005
+      - FOUNDATION-006
+      - FOUNDATION-008
+      - FOUNDATION-009
+      - FOUNDATION-010
+
+  # ---------------------------------------------------------------------
+  # Phase 1 - ENDRA Core
+  # ---------------------------------------------------------------------
+  - id: CORE-001
+    title: Create ENDRA Core API skeleton with POST /api/v1/message
+    phase: 1
+    status: pending
+    priority: critical
+    depends_on:
+      - FOUNDATION-011
+
+  - id: CORE-002
+    title: Define request/response schema types (channel, userId, conversationId, message)
+    phase: 1
+    status: pending
+    priority: critical
+    depends_on:
+      - CORE-001
+
+  - id: CORE-003
+    title: User identity handling
+    phase: 1
+    status: pending
+    priority: high
+    depends_on:
+      - CORE-002
+
+  - id: CORE-004
+    title: Conversation context model
+    phase: 1
+    status: pending
+    priority: high
+    depends_on:
+      - CORE-002
+
+  - id: CORE-005
+    title: LLM provider abstraction (LLMProvider interface)
+    phase: 1
+    status: pending
+    priority: critical
+    depends_on:
+      - CORE-001
+
+  - id: CORE-006
+    title: Implement first LLM provider (Anthropic)
+    phase: 1
+    status: pending
+    priority: critical
+    depends_on:
+      - CORE-005
+
+  - id: CORE-007
+    title: System persona config (config/persona)
+    phase: 1
+    status: pending
+    priority: medium
+    depends_on:
+      - CORE-006
+
+  - id: CORE-008
+    title: Standard ENDRA response format
+    phase: 1
+    status: pending
+    priority: medium
+    depends_on:
+      - CORE-002
+
+  - id: CORE-009
+    title: Agent run logging
+    phase: 1
+    status: pending
+    priority: medium
+    depends_on:
+      - CORE-006
+
+  - id: CORE-010
+    title: Health check endpoint (GET /health)
+    phase: 1
+    status: pending
+    priority: medium
+    depends_on:
+      - CORE-001
+
+  # ---------------------------------------------------------------------
+  # Phase 2 - Persistent Memory
+  # ---------------------------------------------------------------------
+  - id: MEMORY-001
+    title: Design Supabase schema (users, conversations, messages, preferences, memories, embeddings, projects, tasks, tool_runs, agent_runs, approvals, scheduled_jobs)
+    phase: 2
+    status: pending
+    priority: critical
+    depends_on:
+      - CORE-004
+
+  - id: MEMORY-002
+    title: Implement Supabase migrations
+    phase: 2
+    status: pending
+    priority: critical
+    depends_on:
+      - MEMORY-001
+
+  - id: MEMORY-003
+    title: Conversation and message persistence layer
+    phase: 2
+    status: pending
+    priority: high
+    depends_on:
+      - MEMORY-002
+
+  - id: MEMORY-004
+    title: User preferences storage
+    phase: 2
+    status: pending
+    priority: medium
+    depends_on:
+      - MEMORY-002
+
+  - id: MEMORY-005
+    title: Semantic memory storage and embeddings
+    phase: 2
+    status: pending
+    priority: high
+    depends_on:
+      - MEMORY-002
+
+  - id: MEMORY-006
+    title: Memory retrieval (similarity + importance + recency ranking)
+    phase: 2
+    status: pending
+    priority: high
+    depends_on:
+      - MEMORY-005
+
+  - id: MEMORY-007
+    title: Memory promotion pipeline (extraction, dedup, conflict detection)
+    phase: 2
+    status: pending
+    priority: high
+    depends_on:
+      - MEMORY-005
+
+  - id: MEMORY-008
+    title: Project memory support
+    phase: 2
+    status: pending
+    priority: medium
+    depends_on:
+      - MEMORY-003
+
+  # ---------------------------------------------------------------------
+  # Phase 3 - Tool Architecture
+  # ---------------------------------------------------------------------
+  - id: TOOLARCH-001
+    title: Define EndraTool contract
+    phase: 3
+    status: pending
+    priority: critical
+    depends_on:
+      - CORE-006
+
+  - id: TOOLARCH-002
+    title: Tool Registry
+    phase: 3
+    status: pending
+    priority: critical
+    depends_on:
+      - TOOLARCH-001
+
+  - id: TOOLARCH-003
+    title: Tool Router
+    phase: 3
+    status: pending
+    priority: critical
+    depends_on:
+      - TOOLARCH-002
+
+  - id: TOOLARCH-004
+    title: Permission system and risk levels (read/write/critical)
+    phase: 3
+    status: pending
+    priority: critical
+    depends_on:
+      - TOOLARCH-001
+
+  - id: TOOLARCH-005
+    title: Confirmation state system for write/critical actions
+    phase: 3
+    status: pending
+    priority: critical
+    depends_on:
+      - TOOLARCH-004
+
+  - id: TOOLARCH-006
+    title: Tool run logging
+    phase: 3
+    status: pending
+    priority: medium
+    depends_on:
+      - TOOLARCH-003
+
+  - id: TOOLARCH-007
+    title: First test tools (get_current_time, calculator, notes)
+    phase: 3
+    status: pending
+    priority: medium
+    depends_on:
+      - TOOLARCH-005
+
+  # ---------------------------------------------------------------------
+  # Phase 4 - Telegram
+  # ---------------------------------------------------------------------
+  - id: TELEGRAM-001
+    title: Telegram bot integration setup
+    phase: 4
+    status: pending
+    priority: critical
+    depends_on:
+      - TOOLARCH-007
+
+  - id: TELEGRAM-002
+    title: n8n Telegram trigger workflow
+    phase: 4
+    status: pending
+    priority: critical
+    depends_on:
+      - TELEGRAM-001
+
+  - id: TELEGRAM-003
+    title: User authorization (ENDRA_ALLOWED_TELEGRAM_USERS)
+    phase: 4
+    status: pending
+    priority: critical
+    depends_on:
+      - TELEGRAM-002
+
+  - id: TELEGRAM-004
+    title: Inbound message handling into ENDRA Core
+    phase: 4
+    status: pending
+    priority: critical
+    depends_on:
+      - TELEGRAM-003
+
+  - id: TELEGRAM-005
+    title: Reply delivery back to Telegram
+    phase: 4
+    status: pending
+    priority: high
+    depends_on:
+      - TELEGRAM-004
+
+  - id: TELEGRAM-006
+    title: Duplicate update prevention
+    phase: 4
+    status: pending
+    priority: high
+    depends_on:
+      - TELEGRAM-004
+
+  - id: TELEGRAM-007
+    title: Typing indicator state
+    phase: 4
+    status: pending
+    priority: low
+    depends_on:
+      - TELEGRAM-005
+
+  - id: TELEGRAM-008
+    title: Error handling and message length handling
+    phase: 4
+    status: pending
+    priority: medium
+    depends_on:
+      - TELEGRAM-005
+
+  # ---------------------------------------------------------------------
+  # Phase 5 - Useful Tools
+  # ---------------------------------------------------------------------
+  - id: TOOLS-001
+    title: Weather tool
+    phase: 5
+    status: pending
+    priority: high
+    depends_on:
+      - TELEGRAM-008
+
+  - id: TOOLS-002
+    title: Web research tool
+    phase: 5
+    status: pending
+    priority: high
+    depends_on:
+      - TOOLS-001
+
+  - id: TOOLS-003
+    title: Calendar tool
+    phase: 5
+    status: pending
+    priority: high
+    depends_on:
+      - TOOLS-001
+
+  - id: TOOLS-004
+    title: Gmail tool
+    phase: 5
+    status: pending
+    priority: high
+    depends_on:
+      - TOOLS-001
+
+  - id: TOOLS-005
+    title: Notes tool
+    phase: 5
+    status: pending
+    priority: medium
+    depends_on:
+      - TOOLS-001
+
+  - id: TOOLS-006
+    title: Reminders tool
+    phase: 5
+    status: pending
+    priority: medium
+    depends_on:
+      - TOOLS-001
+
+  - id: TOOLS-007
+    title: Finance / crypto tool
+    phase: 5
+    status: pending
+    priority: medium
+    depends_on:
+      - TOOLS-001
+
+  # ---------------------------------------------------------------------
+  # Phase 6 - Proactive ENDRA
+  # ---------------------------------------------------------------------
+  - id: PROACTIVE-001
+    title: Scheduled task infrastructure
+    phase: 6
+    status: pending
+    priority: high
+    depends_on:
+      - TOOLS-007
+
+  - id: PROACTIVE-002
+    title: Recurring tasks
+    phase: 6
+    status: pending
+    priority: medium
+    depends_on:
+      - PROACTIVE-001
+
+  - id: PROACTIVE-003
+    title: Conditional monitors (e.g. price thresholds, weather conditions)
+    phase: 6
+    status: pending
+    priority: high
+    depends_on:
+      - PROACTIVE-001
+
+  - id: PROACTIVE-004
+    title: Notification delivery
+    phase: 6
+    status: pending
+    priority: high
+    depends_on:
+      - PROACTIVE-003
+
+  - id: PROACTIVE-005
+    title: Deduplication and cooldown logic
+    phase: 6
+    status: pending
+    priority: medium
+    depends_on:
+      - PROACTIVE-004
+
+  # ---------------------------------------------------------------------
+  # Phase 7 - Voice
+  # ---------------------------------------------------------------------
+  - id: VOICE-001
+    title: Telegram voice note ingestion
+    phase: 7
+    status: pending
+    priority: medium
+    depends_on:
+      - PROACTIVE-005
+
+  - id: VOICE-002
+    title: Speech-to-text integration
+    phase: 7
+    status: pending
+    priority: medium
+    depends_on:
+      - VOICE-001
+
+  - id: VOICE-003
+    title: Text-to-speech integration
+    phase: 7
+    status: pending
+    priority: medium
+    depends_on:
+      - VOICE-002
+
+  - id: VOICE-004
+    title: Voice response delivery back to Telegram
+    phase: 7
+    status: pending
+    priority: medium
+    depends_on:
+      - VOICE-003
+
+  # ---------------------------------------------------------------------
+  # Phase 8 - Web / PWA
+  # ---------------------------------------------------------------------
+  - id: WEB-001
+    title: ENDRA web/PWA shell
+    phase: 8
+    status: pending
+    priority: medium
+    depends_on:
+      - VOICE-004
+
+  - id: WEB-002
+    title: Chat interface
+    phase: 8
+    status: pending
+    priority: medium
+    depends_on:
+      - WEB-001
+
+  - id: WEB-003
+    title: Tasks / projects / notifications views
+    phase: 8
+    status: pending
+    priority: low
+    depends_on:
+      - WEB-002
+
+  - id: WEB-004
+    title: Memory overview view
+    phase: 8
+    status: pending
+    priority: low
+    depends_on:
+      - WEB-002
+
+  - id: WEB-005
+    title: Automations view
+    phase: 8
+    status: pending
+    priority: low
+    depends_on:
+      - WEB-002
+
+  # ---------------------------------------------------------------------
+  # Phase 9 - Desktop Companion
+  # ---------------------------------------------------------------------
+  - id: DESKTOP-001
+    title: Desktop companion service scaffold
+    phase: 9
+    status: pending
+    priority: low
+    depends_on:
+      - WEB-005
+
+  - id: DESKTOP-002
+    title: Secure cloud connection (no unauthenticated open ports)
+    phase: 9
+    status: pending
+    priority: critical
+    depends_on:
+      - DESKTOP-001
+
+  - id: DESKTOP-003
+    title: system_info tool
+    phase: 9
+    status: pending
+    priority: low
+    depends_on:
+      - DESKTOP-002
+
+  - id: DESKTOP-004
+    title: open_url / open_application tool
+    phase: 9
+    status: pending
+    priority: low
+    depends_on:
+      - DESKTOP-002
+
+  - id: DESKTOP-005
+    title: Safe file browsing tool
+    phase: 9
+    status: pending
+    priority: low
+    depends_on:
+      - DESKTOP-002
+
+  - id: DESKTOP-006
+    title: Per-tool permission system for the companion
+    phase: 9
+    status: pending
+    priority: critical
+    depends_on:
+      - DESKTOP-002
