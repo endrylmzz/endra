@@ -7,10 +7,11 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
-    "dev": "node --experimental-strip-types src/index.ts"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@endra/agent-contracts": "*",
-    "@endra/shared": "*"
+    "@endra/shared": "*",
+    "fastify": "^5.12.3"
   }
 }

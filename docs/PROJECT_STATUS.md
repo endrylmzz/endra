@@ -1,22 +1,24 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 0 — Foundation
+Phase 1 — ENDRA Core
 
 Overall Progress:
-15% (see `npm run status`, computed from `docs/TASKS.yaml`)
+20% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-FOUNDATION-011 Verify Phase 0 exit criteria
+CORE-010 Health check endpoint (GET /health) — alongside CORE-001 (API
+skeleton) and CORE-002 (request/response schema types), all delivered
+together as the Fastify-based Core foundation.
 
 Currently Working:
-(none — Phase 0 complete)
+(none)
 
 Blocked:
 None
 
 Next:
-CORE-001 Create ENDRA Core API skeleton with POST /api/v1/message
+CORE-003 User identity handling
 
 Last Updated:
 2026-09-07

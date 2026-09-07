@@ -1,9 +1,11 @@
-// ENDRA Core entry point.
-// Phase 0 placeholder only - the actual API (POST /api/v1/message, /health,
-// LLM provider wiring, memory, tool router) is built starting in Phase 1.
+import { buildApp } from "./app.js";
 
-import { ENDRA_VERSION } from "@endra/shared";
+const port = Number(process.env.PORT ?? 3000);
+const host = process.env.HOST ?? "0.0.0.0";
 
-export function getCoreVersion(): string {
-  return ENDRA_VERSION;
-}
+const app = buildApp();
+
+app.listen({ port, host }).catch((err) => {
+  app.log.error(err);
+  process.exit(1);
+});

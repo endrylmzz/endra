@@ -4,6 +4,49 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-07 (2)
+
+Completed:
+
+- CORE-001 ENDRA Core API skeleton (`POST /api/v1/message`)
+- CORE-002 Request/response schema types
+- CORE-010 Health check endpoint (`GET /health`)
+
+Changed:
+
+- Added Fastify to `apps/core` as the HTTP framework.
+- `apps/core/src/app.ts` builds the Fastify instance: structured JSON
+  logging (pino) with a UUID `reqId` per request, a global error
+  handler returning a standard `{ success: false, error }` envelope,
+  and a not-found handler for unmatched routes.
+- `POST /api/v1/message` validates its body against a JSON schema
+  (channel/userId/conversationId/message, `additionalProperties:
+false`) and delegates to `services/message-service.ts` — routes stay
+  thin, business logic is separated for future Core pipeline work.
+- `GET /health` returns `{ status, version, uptime }`.
+- Added `EndraMessageRequest` / `EndraApiResponse<T>` etc. to
+  `packages/agent-contracts/src/message.ts` as the shared message
+  envelope contract.
+- Added 9 tests total (6 new, via Fastify `inject()`) covering health,
+  success, validation failure, extra-field rejection, unknown channel,
+  and 404.
+
+Problems:
+
+- Fastify's default ajv config sets `removeAdditional: true`, which
+  silently strips unknown body fields instead of rejecting them —
+  defeats `additionalProperties: false`. Fixed by passing
+  `ajv: { customOptions: { removeAdditional: false } }` in `buildApp()`.
+  Caught by manual curl testing against the built server, not by the
+  original test suite — added a dedicated test afterward.
+
+Next:
+
+- CORE-003 / CORE-004 / CORE-005 — user identity, conversation model,
+  or LLM provider abstraction (all unblocked; see `docs/NEXT_ACTION.md`).
+
+---
+
 ## 2026-09-07
 
 Completed:
