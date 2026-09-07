@@ -1,52 +1,53 @@
 # NEXT ACTION
 
 Continue task:
-One of CORE-003 (user identity), CORE-004 (conversation model), or
-CORE-007 (persona config) — all now unblocked.
+CORE-003 (user identity) or CORE-004 (conversation model) — both
+unblocked. After either (or both), the message route can finally be
+wired up for real.
 
 Goal:
-CORE-005 (LLMProvider interface) and CORE-006 (Anthropic implementation)
-are done. ENDRA Core can now call an LLM, but nothing in the HTTP layer
-does yet — `POST /api/v1/message` still returns the static stub response
-from `services/message-service.ts`.
+CORE-005/006/007 are all done: ENDRA Core has an LLM provider
+(Anthropic) and a persona (`config/persona/endra.md`). `/api/v1/message`
+still returns the static stub, though — nothing calls the LLM yet.
 
 Current state:
 
-- `packages/agent-contracts/src/llm.ts` — `LLMProvider` interface,
-  `LLMGenerateRequest`/`LLMGenerateResponse` types. Deliberately minimal:
-  one `generate()` method, no streaming or tool-calling yet (those get
-  added when something real needs them — voice/Phase 7 for streaming,
-  tool routing/Phase 3 for tool-calling).
-- `apps/core/src/llm/anthropic-provider.ts` — `AnthropicProvider`
-  implements `LLMProvider` using `@anthropic-ai/sdk`. Reads
-  `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` from env, or accepts them (plus
-  an injectable `client` for tests) via constructor options. Throws
-  clearly if no key and no injected client are provided.
-- `apps/core/src/llm/anthropic-provider.test.ts` — 3 tests, all against
-  an injected fake client (no real network calls, no API key needed to
-  run the test suite).
-- No `.env` exists yet in this repo, so nothing has actually called the
-  real Anthropic API — that has not been verified end-to-end.
+- `config/persona/endra.md` — ENDRA's system prompt, written in Turkish
+  as a first draft; Ender has not reviewed/edited it yet. Plain text
+  config, not code, so it's a simple edit whenever he does.
+- `apps/core/src/persona/load-persona.ts` — `loadPersona()` reads it
+  (path overridable via `ENDRA_PERSONA_PATH`), with an embedded fallback
+  if the file is missing at runtime.
+- `apps/core/src/llm/anthropic-provider.ts` — `AnthropicProvider`,
+  implements `LLMProvider`. Still never instantiated in `apps/core`'s
+  actual request path (only exercised by its own unit tests).
+- No real `ANTHROPIC_API_KEY` is configured in this environment yet, so
+  no live call to Anthropic has been made.
 
-Why the message route wasn't wired up yet:
-Wiring the LLM into `/api/v1/message` properly needs a system persona
-(CORE-007) and a real response/logging shape (CORE-008/CORE-009) so the
-first real LLM-backed reply isn't a half-built shortcut. Doing it now
-would mean hardcoding a system prompt inline in the route, which is
-exactly the kind of thing CLAUDE.md section 15 says not to do.
+Remaining before the message route can call the LLM for real:
 
-Next steps (pick one, in any reasonable order):
+1. `CORE-003` / `CORE-004` — at least a minimal user identity /
+   conversation context model, so the LLM call has more than just the
+   raw request to work with (even a light placeholder is enough for
+   now — full versions land in Phase 2 with Supabase).
+2. `CORE-009` Agent run logging — before making real (paid) LLM calls
+   from Core, log at minimum: model used, token usage, duration,
+   status. This is a CLAUDE.md section 25 requirement, not optional
+   polish.
+3. Then: `message-service.ts` calls `loadPersona()` +
+   `AnthropicProvider.generate()` instead of returning the static stub.
+4. A real `ANTHROPIC_API_KEY` needs to be added to `.env` to test this
+   end-to-end against the live API — ask Ender before assuming it's
+   available, and never commit `.env`.
 
-1. `CORE-007` System persona config (`config/persona/`) — needed before
-   any real LLM call can represent "ENDRA" rather than a generic model.
-2. `CORE-003` / `CORE-004` — user identity + conversation context model
-   (still fine as light placeholders before Supabase/Phase 2 exists).
-3. Once persona exists, wire `AnthropicProvider` into
-   `message-service.ts` for real (this isn't its own TASKS.yaml entry —
-   it naturally happens as part of CORE-007/008/009).
+Also noted for later (not started, no task ID yet):
+Ender wants OpenAI (not Anthropic) for voice (STT/TTS, Phase 7) and
+image generation tooling. Anthropic stays the default for Core's text
+reasoning. When that work starts, follow the same interface-first
+pattern as `AnthropicProvider` rather than overloading the text-only
+`LLMProvider` interface for voice/image.
 
 Important:
-To actually exercise `AnthropicProvider` against the real API (not just
-unit tests), a real `ANTHROPIC_API_KEY` needs to go into `.env` — ask
-before assuming that's available. Don't invent a real API smoke test
-that would fail/cost money without one.
+Don't wire a real LLM call into the request path without at least basic
+agent run logging (CORE-009) — a silent, unlogged LLM call in
+production would violate CLAUDE.md's observability rule.

@@ -4,6 +4,42 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-08
+
+Completed:
+
+- CORE-007 System persona config
+
+Changed:
+
+- Added `config/persona/endra.md` — a first-draft ENDRA system prompt
+  (Turkish: alter-ego framing, tone, pushes back on weak ideas, always
+  confirms risky/irreversible actions, uses tools instead of just
+  describing them). Drafted per CLAUDE.md section 15; Ender has not
+  reviewed/edited it yet. Plain text, not code, so it's editable
+  without touching Core.
+- Added `apps/core/src/persona/load-persona.ts` (`loadPersona()`) to
+  read it at runtime, with an embedded fallback persona if the file is
+  missing (e.g. a deployment that only ships `apps/core`).
+- Added 2 tests: loads the real file, falls back when the configured
+  path doesn't exist.
+- Noted a forward-looking decision (not yet implemented): Ender wants
+  OpenAI, not Anthropic, for voice (Phase 7) and image generation
+  tooling. Recorded in `docs/NEXT_ACTION.md` and in cross-session
+  memory so it isn't lost before Phase 5/7 work starts.
+
+Problems:
+
+- None.
+
+Next:
+
+- CORE-003 / CORE-004, then wire persona + AnthropicProvider into
+  `/api/v1/message` (needs CORE-009 agent run logging first — see
+  `docs/NEXT_ACTION.md`).
+
+---
+
 ## 2026-09-07 (3)
 
 Completed:

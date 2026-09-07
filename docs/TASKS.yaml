@@ -159,7 +159,7 @@ tasks:
   - id: CORE-007
     title: System persona config (config/persona)
     phase: 1
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - CORE-006
