@@ -4,12 +4,12 @@ Current Phase:
 Phase 1 — ENDRA Core
 
 Overall Progress:
-20% (see `npm run status`, computed from `docs/TASKS.yaml`)
+23% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-CORE-010 Health check endpoint (GET /health) — alongside CORE-001 (API
-skeleton) and CORE-002 (request/response schema types), all delivered
-together as the Fastify-based Core foundation.
+CORE-006 First LLM provider (Anthropic), alongside CORE-005 (LLMProvider
+abstraction interface). Not yet wired into the `/api/v1/message` route —
+built and tested standalone.
 
 Currently Working:
 (none)
@@ -18,7 +18,8 @@ Blocked:
 None
 
 Next:
-CORE-003 User identity handling
+CORE-003 User identity handling / CORE-004 Conversation context model /
+CORE-007 System persona config — see `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-07

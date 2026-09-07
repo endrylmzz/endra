@@ -143,7 +143,7 @@ tasks:
   - id: CORE-005
     title: LLM provider abstraction (LLMProvider interface)
     phase: 1
-    status: pending
+    status: done
     priority: critical
     depends_on:
       - CORE-001
@@ -151,7 +151,7 @@ tasks:
   - id: CORE-006
     title: Implement first LLM provider (Anthropic)
     phase: 1
-    status: pending
+    status: done
     priority: critical
     depends_on:
       - CORE-005

@@ -4,6 +4,41 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-07 (3)
+
+Completed:
+
+- CORE-005 LLMProvider abstraction interface
+- CORE-006 First LLM provider (Anthropic)
+
+Changed:
+
+- Added `LLMProvider` / `LLMGenerateRequest` / `LLMGenerateResponse` to
+  `packages/agent-contracts/src/llm.ts`. Scoped to a single `generate()`
+  call on purpose — no streaming or tool-calling yet, since nothing
+  needs them until Phase 7 (voice) and Phase 3 (tools) respectively.
+- Added `apps/core/src/llm/anthropic-provider.ts` (`AnthropicProvider`,
+  using `@anthropic-ai/sdk`). Reads `ANTHROPIC_API_KEY` /
+  `ANTHROPIC_MODEL` from env by default; accepts an injectable client
+  for testing so the test suite never calls the real API.
+- Added 3 tests for the provider (missing-key error, successful
+  mapping, empty-content fallback).
+- Did NOT wire the provider into `POST /api/v1/message` yet — see
+  `docs/NEXT_ACTION.md` for why (persona/response-format/logging
+  should land first).
+
+Problems:
+
+- None. No real Anthropic API call has been made yet (no `.env` /
+  `ANTHROPIC_API_KEY` configured in this environment) — only verified
+  against an injected fake client.
+
+Next:
+
+- CORE-003 / CORE-004 / CORE-007 (see `docs/NEXT_ACTION.md`).
+
+---
+
 ## 2026-09-07 (2)
 
 Completed:

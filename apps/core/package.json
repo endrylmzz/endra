@@ -10,6 +10,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@endra/agent-contracts": "*",
     "@endra/shared": "*",
     "fastify": "^5.12.3"

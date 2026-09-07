@@ -1,63 +1,52 @@
 # NEXT ACTION
 
 Continue task:
-CORE-003 (suggested by `npm run next` — first pending task in file order)
+One of CORE-003 (user identity), CORE-004 (conversation model), or
+CORE-007 (persona config) — all now unblocked.
 
 Goal:
-CORE-001/CORE-002/CORE-010 are done: ENDRA Core is now a real Fastify
-service with `POST /api/v1/message`, `GET /health`, request validation,
-a global error handler, and structured logging. The next unblocked
-tasks (all depend only on already-done work) are:
-
-- `CORE-003` User identity handling
-- `CORE-004` Conversation context model
-- `CORE-005` LLM provider abstraction (`LLMProvider` interface) — critical priority
-- `CORE-006` First LLM provider implementation (Anthropic), depends on CORE-005
+CORE-005 (LLMProvider interface) and CORE-006 (Anthropic implementation)
+are done. ENDRA Core can now call an LLM, but nothing in the HTTP layer
+does yet — `POST /api/v1/message` still returns the static stub response
+from `services/message-service.ts`.
 
 Current state:
-`apps/core/src/`:
 
-- `app.ts` — `buildApp()`, builds and configures the Fastify instance
-  (error handler, not-found handler, route registration). Takes
-  `FastifyServerOptions` overrides for testability.
-- `index.ts` — process entrypoint, calls `buildApp()` and `listen()`.
-- `routes/health.ts`, `routes/message.ts` — thin route handlers only.
-- `services/message-service.ts` — `handleMessage()`, the one piece of
-  "business logic" so far (currently a stub that just echoes back a
-  static message + the conversationId). This is where LLM/memory/tool
-  orchestration will eventually be wired in — routes should stay thin.
-- `app.test.ts` — Fastify `inject()`-based tests: health, valid
-  message, missing fields (400), extra field rejected (400), unknown
-  channel (400), unknown route (404).
+- `packages/agent-contracts/src/llm.ts` — `LLMProvider` interface,
+  `LLMGenerateRequest`/`LLMGenerateResponse` types. Deliberately minimal:
+  one `generate()` method, no streaming or tool-calling yet (those get
+  added when something real needs them — voice/Phase 7 for streaming,
+  tool routing/Phase 3 for tool-calling).
+- `apps/core/src/llm/anthropic-provider.ts` — `AnthropicProvider`
+  implements `LLMProvider` using `@anthropic-ai/sdk`. Reads
+  `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` from env, or accepts them (plus
+  an injectable `client` for tests) via constructor options. Throws
+  clearly if no key and no injected client are provided.
+- `apps/core/src/llm/anthropic-provider.test.ts` — 3 tests, all against
+  an injected fake client (no real network calls, no API key needed to
+  run the test suite).
+- No `.env` exists yet in this repo, so nothing has actually called the
+  real Anthropic API — that has not been verified end-to-end.
 
-`packages/agent-contracts/src/message.ts` holds the shared request/
-response types (`EndraMessageRequest`, `EndraApiResponse<T>`, etc.) —
-JSON-schema validation in `routes/message.ts` is kept manually in sync
-with these types (no schema-to-types codegen library was added; single
-endpoint, low drift risk for now — revisit if more endpoints appear).
+Why the message route wasn't wired up yet:
+Wiring the LLM into `/api/v1/message` properly needs a system persona
+(CORE-007) and a real response/logging shape (CORE-008/CORE-009) so the
+first real LLM-backed reply isn't a half-built shortcut. Doing it now
+would mean hardcoding a system prompt inline in the route, which is
+exactly the kind of thing CLAUDE.md section 15 says not to do.
 
-Response envelope in use: `{ success: true, data }` /
-`{ success: false, error: { code, message } }`. Health does not use
-this envelope (matches CLAUDE.md section 38's simpler health shape).
+Next steps (pick one, in any reasonable order):
 
-Verified: `npm run build`, `npm test` (9/9 passing), `npm run lint`,
-`npx prettier --check .`, and a manual curl smoke test against the
-built server (`node apps/core/dist/index.js`) — health, valid message,
-missing-field 400, extra-field 400, unknown-route 404 all behaved as
-expected, including structured JSON request logs with per-request
-`reqId`.
-
-Next steps:
-
-1. Pick which of CORE-003/004/005 to do next (LLM provider abstraction
-   is arguably the highest-value next step — nothing in Core actually
-   calls an LLM yet).
-2. Whichever is picked, keep the route/service separation established
-   here — no business logic directly in `routes/*.ts`.
-3. Update `docs/TASKS.yaml`, `docs/PROJECT_STATUS.md`, and this file
-   when the task is complete.
+1. `CORE-007` System persona config (`config/persona/`) — needed before
+   any real LLM call can represent "ENDRA" rather than a generic model.
+2. `CORE-003` / `CORE-004` — user identity + conversation context model
+   (still fine as light placeholders before Supabase/Phase 2 exists).
+3. Once persona exists, wire `AnthropicProvider` into
+   `message-service.ts` for real (this isn't its own TASKS.yaml entry —
+   it naturally happens as part of CORE-007/008/009).
 
 Important:
-Still no real LLM, Supabase, n8n, or Telegram integration — that is
-correct and intentional at this point in Phase 1. Do not add fake/mock
-external dependencies just to make something "feel" more complete.
+To actually exercise `AnthropicProvider` against the real API (not just
+unit tests), a real `ANTHROPIC_API_KEY` needs to go into `.env` — ask
+before assuming that's available. Don't invent a real API smoke test
+that would fail/cost money without one.
