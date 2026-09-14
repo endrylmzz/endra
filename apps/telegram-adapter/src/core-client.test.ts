@@ -17,7 +17,7 @@ describe("callCore", () => {
       "http://localhost:3000",
     );
 
-    expect(result).toBe("Merhaba Ender.");
+    expect(result).toEqual({ message: "Merhaba Ender." });
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:3000/api/v1/message",
       expect.objectContaining({
@@ -30,6 +30,38 @@ describe("callCore", () => {
         }),
       }),
     );
+  });
+
+  it("sends attachments and returns any attachments in the response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        success: true,
+        data: {
+          message: "İşte görsel!",
+          attachments: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callCore(
+      {
+        userId: "1",
+        conversationId: "1",
+        message: "",
+        attachments: [{ type: "audio", data: "ZmFrZQ==", mimeType: "audio/ogg" }],
+      },
+      "http://localhost:3000",
+    );
+
+    expect(result).toEqual({
+      message: "İşte görsel!",
+      attachments: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+    });
+    const [, options] = fetchMock.mock.calls[0] as [string, { body: string }];
+    expect(JSON.parse(options.body).attachments).toEqual([
+      { type: "audio", data: "ZmFrZQ==", mimeType: "audio/ogg" },
+    ]);
   });
 
   it("throws with Core's error message when the response is unsuccessful", async () => {

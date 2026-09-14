@@ -6,5 +6,8 @@
   "scripts": {
     "build": "tsc -b",
     "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@endra/agent-contracts": "*"
   }
 }

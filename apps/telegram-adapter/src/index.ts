@@ -25,8 +25,11 @@ for (;;) {
       offset = update.update_id + 1;
       await handleUpdate(update, {
         isAuthorized: (userId) => isAuthorized(userId, allowedUsersEnv),
+        downloadFile: (fileId) => client.downloadFile(fileId),
         callCore: (params) => callCore(params, coreBaseUrl),
         sendMessage: (chatId, text) => client.sendMessage(chatId, text),
+        sendPhoto: (chatId, data, mimeType, caption) =>
+          client.sendPhoto(chatId, data, mimeType, caption),
         sendTyping: (chatId) => client.sendTyping(chatId),
       });
     }

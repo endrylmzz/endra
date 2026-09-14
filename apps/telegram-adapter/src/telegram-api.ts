@@ -1,9 +1,11 @@
 // Minimal Telegram Bot API client - just what this adapter needs
-// (long polling + sending text). No library dependency; the API is
-// simple enough that raw fetch is clearer than pulling in a framework
-// for a temporary bridge (see ADR-005).
+// (long polling + sending text/photos + downloading voice/photo
+// files). No library dependency; the API is simple enough that raw
+// fetch is clearer than pulling in a framework for a temporary bridge
+// (see ADR-005).
 
 const TELEGRAM_API_BASE = "https://api.telegram.org";
+const TELEGRAM_FILE_BASE = "https://api.telegram.org/file";
 export const MAX_MESSAGE_LENGTH = 4096;
 
 export interface TelegramUpdate {
@@ -13,6 +15,9 @@ export interface TelegramUpdate {
     from?: { id: number; username?: string };
     chat: { id: number };
     text?: string;
+    caption?: string;
+    voice?: { file_id: string; mime_type?: string; duration: number };
+    photo?: { file_id: string; width: number; height: number }[];
   };
 }
 
@@ -64,7 +69,38 @@ export class TelegramClient {
     }
   }
 
+  async sendPhoto(
+    chatId: number,
+    base64Data: string,
+    mimeType: string,
+    caption?: string,
+  ): Promise<void> {
+    const buffer = Buffer.from(base64Data, "base64");
+    const extension = mimeType.split("/")[1] ?? "png";
+    const form = new FormData();
+    form.append("chat_id", String(chatId));
+    if (caption) form.append("caption", caption);
+    form.append("photo", new Blob([buffer], { type: mimeType }), `image.${extension}`);
+
+    const response = await fetch(this.url("sendPhoto"), { method: "POST", body: form });
+    const data = (await response.json()) as { ok: boolean; description?: string };
+    if (!data.ok) {
+      throw new Error(`Telegram sendPhoto failed: ${data.description ?? response.statusText}`);
+    }
+  }
+
   async sendTyping(chatId: number): Promise<void> {
     await this.call("sendChatAction", { chat_id: chatId, action: "typing" });
+  }
+
+  /** Downloads a Telegram file (voice note, photo, ...) and returns it base64-encoded. */
+  async downloadFile(fileId: string): Promise<string> {
+    const file = (await this.call("getFile", { file_id: fileId })) as { file_path?: string };
+    if (!file.file_path) throw new Error(`Telegram getFile returned no file_path for ${fileId}`);
+
+    const response = await fetch(`${TELEGRAM_FILE_BASE}/bot${this.token}/${file.file_path}`);
+    if (!response.ok) throw new Error(`Downloading Telegram file failed: ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return buffer.toString("base64");
   }
 }

@@ -1,13 +1,24 @@
 // Calls ENDRA Core's channel-agnostic endpoint - the same contract any
 // future channel (n8n's Telegram workflow included) would use.
 
+import type { EndraAttachment } from "@endra/agent-contracts";
+
 export interface CoreMessageParams {
   userId: string;
   conversationId: string;
   message: string;
+  attachments?: EndraAttachment[];
 }
 
-export async function callCore(params: CoreMessageParams, coreBaseUrl: string): Promise<string> {
+export interface CoreMessageResult {
+  message: string;
+  attachments?: EndraAttachment[];
+}
+
+export async function callCore(
+  params: CoreMessageParams,
+  coreBaseUrl: string,
+): Promise<CoreMessageResult> {
   const response = await fetch(`${coreBaseUrl}/api/v1/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -16,7 +27,7 @@ export async function callCore(params: CoreMessageParams, coreBaseUrl: string): 
 
   const data = (await response.json()) as {
     success: boolean;
-    data?: { message: string };
+    data?: CoreMessageResult;
     error?: { message: string };
   };
 
@@ -24,5 +35,5 @@ export async function callCore(params: CoreMessageParams, coreBaseUrl: string): 
     throw new Error(data.error?.message ?? "ENDRA Core returned an error");
   }
 
-  return data.data.message;
+  return data.data;
 }
