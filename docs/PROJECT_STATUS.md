@@ -4,12 +4,14 @@ Current Phase:
 Phase 1 — ENDRA Core
 
 Overall Progress:
-24% (see `npm run status`, computed from `docs/TASKS.yaml`)
+25% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-CORE-007 System persona config — `config/persona/endra.md` (system
-prompt, reviewed and approved by Ender on 2026-09-08) + `loadPersona()`
-loader in `apps/core`. Not yet wired into `/api/v1/message`.
+CORE-011 OpenAI LLM provider — project decision (2026-09-14) to use
+OpenAI instead of Anthropic as Core's default text provider. Verified
+with a real API call (`gpt-5.6` → resolves to `gpt-5.6-sol`). Real
+Supabase project credentials (URL + `sb_secret_...` key) were also
+added to `.env` this session, ahead of Phase 2 starting.
 
 Currently Working:
 (none)
@@ -19,8 +21,7 @@ None
 
 Next:
 CORE-003 User identity handling / CORE-004 Conversation context model,
-then wiring persona + AnthropicProvider into the message route (see
-`docs/NEXT_ACTION.md`).
+then Phase 2 (Supabase/memory) — Ender wants to start on this next.
 
 Last Updated:
-2026-09-08
+2026-09-14

@@ -4,6 +4,46 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14
+
+Completed:
+
+- CORE-011 OpenAI LLM provider (project decision: OpenAI over Anthropic)
+
+Changed:
+
+- Project decision: use OpenAI as Core's default LLM provider, not
+  Anthropic. No Anthropic key was ever provided after being asked
+  twice; Ender explicitly asked to standardize on OpenAI instead.
+- Added `apps/core/src/llm/openai-provider.ts` (`OpenAIProvider`,
+  using the `openai` npm package), same pattern as `AnthropicProvider`:
+  injectable client for tests, reads `OPENAI_API_KEY`/`OPENAI_MODEL`
+  from env. Default model `gpt-5.6`.
+- Added 3 tests (missing-key error, successful mapping, empty-content
+  fallback) - all against an injected fake client.
+- Verified with one real API call (Ender approved the cost): `gpt-5.6`
+  resolved to `gpt-5.6-sol`, got a correct response back. First real
+  external API call made in this project.
+- `AnthropicProvider` was left in place (not deleted) per the existing
+  provider-abstraction design - it's just not the active default.
+- Ender gave real Supabase credentials (new project, new
+  `sb_secret_...` key format) and a Telegram bot token. Saved both to
+  `.env` (gitignored, never committed). Renamed
+  `SUPABASE_SERVICE_ROLE_KEY` → `SUPABASE_SECRET_KEY` in `.env.example`
+  and `scripts/doctor.mjs` to match Supabase's current key naming
+  (legacy `service_role` JWT keys are being deprecated).
+
+Problems:
+
+- None.
+
+Next:
+
+- Phase 2 (Supabase/memory) - see `docs/NEXT_ACTION.md`. CORE-003/004
+  still open too.
+
+---
+
 ## 2026-09-08
 
 Completed:

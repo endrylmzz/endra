@@ -188,6 +188,14 @@ tasks:
     depends_on:
       - CORE-001
 
+  - id: CORE-011
+    title: OpenAI LLM provider - project decision to use OpenAI instead of Anthropic as Core's default
+    phase: 1
+    status: done
+    priority: critical
+    depends_on:
+      - CORE-005
+
   # ---------------------------------------------------------------------
   # Phase 2 - Persistent Memory
   # ---------------------------------------------------------------------
