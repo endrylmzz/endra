@@ -10,6 +10,11 @@ import { calculatorTool } from "./builtin/calculator.js";
 import { createNotesTool, createListNotesTool, createDeleteNoteTool } from "./builtin/notes.js";
 import { createGenerateImageTool } from "./builtin/generate-image.js";
 import { cryptoPriceTool } from "./builtin/crypto-price.js";
+import {
+  createSetReminderTool,
+  createListRemindersTool,
+  createCancelReminderTool,
+} from "./builtin/reminders.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -22,6 +27,9 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createDeleteNoteTool());
     registry.register(createGenerateImageTool());
     registry.register(cryptoPriceTool);
+    registry.register(createSetReminderTool());
+    registry.register(createListRemindersTool());
+    registry.register(createCancelReminderTool());
   }
   return registry;
 }
