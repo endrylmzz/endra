@@ -70,9 +70,39 @@ handling, the Fastify route's `anyOf` schema, and the Telegram
 adapter's voice/photo/sendPhoto paths). Clean build, clean lint, clean
 Prettier format across all 5 workspaces.
 
-Not yet deployed - needs a RepoCloud rebuild trigger, then one real
-Telegram verification (voice note, photo, and an image-generation
-request) before this is considered live.
+Deployed and verified: RepoCloud agent pulled `main` (`29cb308` ->
+`e793f55`), ran `npm install`/`npm run build`/`npm test` (135/135) on
+the VPS, restarted both `endra-core` and `endra-telegram` systemd
+services. `/health` returned `{"status":"ok","version":"0.1.0"}` and an
+end-to-end pipeline check got a real reply, confirming production is
+live on the new code.
+
+Completed:
+
+- MEMORY-008 Project memory support (no code change - `type: "project"`
+  in the `memories` table/pipeline already worked identically to every
+  other memory type; just needed to be marked done)
+
+Explored, not completed:
+
+- TELEGRAM-002 (n8n Telegram trigger workflow). Got access to Ender's
+  existing RepoCloud n8n instance (`n8n-ender`, shared with unrelated
+  "Akıllı Esnaf Kartı"/"Bahiscim" projects) and verified an n8n API key
+  works. Stopped before building the actual workflow once three real
+  blockers surfaced: Core's HTTP API isn't reachable from n8n (separate
+  container from the `endra-core` VPS, and per ADR-006 that VPS's
+  firewall is SSH-only); Core's `/api/v1/message` has no auth
+  (`ENDRA_INTERNAL_SECRET` is an unused placeholder); and activating an
+  n8n Telegram Trigger would silently steal the bot's webhook from the
+  currently-polling, fully-working `apps/telegram-adapter` (which has
+  voice/photo/image-gen support that doesn't exist in n8n form). Decided
+  with Ender to skip this for now rather than risk breaking the live
+  bot for a migration with no immediate functional upside. `N8N_BASE_URL`
+  and `N8N_API_KEY` saved in `.env` for whenever this is revisited. Also
+  noted: the RepoCloud VPS dashboard shows a default public domain
+  (`vps-3737633d.vps.rcld.dev`) in addition to SSH access - worth
+  re-checking whether ADR-006's "SSH-only" firewall assumption still
+  holds before the next attempt.
 
 ---
 

@@ -1,13 +1,14 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 3 (Tools) fully done, now including multimodal input and image
-generation, **live in production** (pending a deploy trigger). Phases
-1, 4 done; Phase 2 substantially deep; two Phase 7 (Voice) tasks done
-early as part of this multimodal work.
+Phase 3 (Tools) fully done, including multimodal input and image
+generation, **deployed and verified live in production** (RepoCloud
+rebuild confirmed via `/health` and an end-to-end Telegram pipeline
+check). Phases 1, 2, 4 done; two Phase 7 (Voice) tasks done early as
+part of the multimodal work.
 
 Overall Progress:
-64% (see `npm run status`, computed from `docs/TASKS.yaml`)
+65% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
 **ENDRA can now hear, see, and draw.** Added to the tool-calling
@@ -36,13 +37,15 @@ Currently Working:
 (none)
 
 Blocked:
-None. **This is a real production-behavior change** - not deployed
-yet. Push a rebuild via the RepoCloud agent ("Resume Chat" -> ask it to
-pull/rebuild/restart) when ready to go live with this.
+None.
 
 Next:
-Decide which key-requiring tools to build next (weather, web search,
-calendar, Gmail, etc.) - see `docs/NEXT_ACTION.md`.
+`TELEGRAM-002` (n8n Telegram trigger workflow) explored and skipped
+for now - real blockers found (Core unreachable from n8n, no auth on
+Core's endpoint, Telegram allows only one active consumer). n8n API
+access is saved in `.env` for later. Decide which key-requiring tool
+to build next (weather, web search, calendar, Gmail - `TOOLS-001`
+suggested). See `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-15

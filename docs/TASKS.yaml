@@ -257,7 +257,7 @@ tasks:
   - id: MEMORY-008
     title: Project memory support
     phase: 2
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - MEMORY-003
@@ -350,7 +350,7 @@ tasks:
   - id: TELEGRAM-002
     title: n8n Telegram trigger workflow
     phase: 4
-    status: pending
+    status: skipped
     priority: critical
     depends_on:
       - TELEGRAM-001

@@ -2,15 +2,56 @@
 
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal input + image generation +
-key-free tools) is done, tested locally against real OpenAI/CoinGecko -
-**not yet deployed**. Trigger a RepoCloud rebuild when ready, then
-verify once via real Telegram (voice note, photo, "resim çiz") before
-considering this fully done in production.
+key-free tools) is deployed and verified live in production (see
+DEVLOG 2026-09-15). `MEMORY-008` closed (already covered by existing
+`type: "project"` support - no code change needed). `TELEGRAM-002`
+(n8n Telegram trigger) explored and explicitly **skipped** for now -
+see below.
 
 Goal:
-Get voice/vision/image-generation actually running on the VPS, verify
-once via real Telegram messages, then decide which key-requiring tool
-to build next (weather, web search, calendar, Gmail).
+Decide which key-requiring tool to build next (weather, web search,
+calendar, Gmail - Phase 5, `TOOLS-001` suggested by `npm run next`).
+
+## TELEGRAM-002 (n8n) - explored, skipped for now
+
+Ender already has a working n8n instance on RepoCloud
+(`https://pmo2u6ap.rpcld.co`, project name "n8n-ender") - it's a
+**shared instance** also running unrelated workflows for other
+projects ("Akıllı Esnaf Kartı", "Bahiscim"). Got an n8n API key,
+verified it works (`GET /api/v1/workflows` succeeds), and stored both
+in `.env` as `N8N_BASE_URL` / `N8N_API_KEY` (never committed;
+`.env.example` has the placeholder keys).
+
+Building the actual Telegram-inbound n8n workflow surfaced three real
+blockers, discussed with Ender, leading to the decision to skip this
+for now rather than push through the risk:
+
+1. **Core is not reachable from n8n.** Per ADR-006, `endra-core`'s
+   firewall only allows SSH; Core's HTTP API is only reachable via
+   localhost by `apps/telegram-adapter` on the same VPS. n8n runs as a
+   separate managed container - it has no route to Core at all right
+   now. *Update:* the RepoCloud dashboard actually shows a default
+   public domain for the VPS too (`vps-3737633d.vps.rcld.dev`,
+   `148.251.160.63`) alongside SSH - worth re-checking with the
+   RepoCloud agent whether any port is already open before assuming
+   ADR-006's "SSH-only" is still accurate.
+2. **Core's message endpoint has no auth.** `ENDRA_INTERNAL_SECRET` is
+   only a placeholder env var today - nothing in `apps/core` checks
+   it. Exposing `/api/v1/message` to the internet without real auth
+   first would be a real security hole.
+3. **Telegram allows only one active consumer** (long-polling XOR
+   webhook) per bot token. Activating an n8n Telegram Trigger node
+   would silently steal the webhook from the currently-polling
+   `apps/telegram-adapter` - breaking the live, fully-working bot
+   (including voice/photo/image-gen, none of which exist yet as n8n
+   nodes) the moment the n8n workflow is turned on.
+
+Decision: don't touch the Telegram path today. The credentials/API
+access are saved and ready for whenever this is revisited. If/when it
+is: fix (1) and (2) first (add real auth to Core, confirm and open the
+right port), build the n8n workflow with parity for voice/photo/image
+generation, and only then activate it - ideally right after stopping
+`apps/telegram-adapter`'s polling loop on the VPS, not before.
 
 ## Current state - TOOLARCH-009 (multimodal input + image gen + key-free tools)
 
@@ -57,19 +98,15 @@ to build next (weather, web search, calendar, Gmail).
   Clean build, clean lint, clean Prettier format across all 5
   workspaces.
 
-## Not deployed yet
+## Deployed
 
-This whole change is sitting on `main`, tested locally, not yet on the
-VPS. To go live: RepoCloud dashboard -> `endra-core` project -> "Resume
-Chat" -> ask the agent to pull latest from `main`, rebuild, and restart
-both services. Then from Telegram: send a voice note, send a photo, and
-ask it to draw something - confirm all three work in production, not
-just locally.
+Confirmed live in production 2026-09-15: RepoCloud agent pulled `main`,
+rebuilt, ran the full test suite (135/135) on the VPS, and restarted
+both `endra-core` and `endra-telegram` systemd services. `/health` and
+an end-to-end pipeline check both passed.
 
 ## Other open items (not blocking)
 
-- `MEMORY-008` (project memory) - likely just documenting that
-  `type: "project"` in `memories` already covers this.
 - Real external tools that need a key/OAuth (weather, web search,
   calendar, Gmail - Phase 5) - ask when building that specific one, and
   remember to pass explicit risk-level `overrides` for any MCP-sourced
