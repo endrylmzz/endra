@@ -52,7 +52,15 @@ export class TelegramClient {
 
   async sendMessage(chatId: number, text: string): Promise<void> {
     for (const chunk of chunkMessage(text)) {
-      await this.call("sendMessage", { chat_id: chatId, text: chunk });
+      try {
+        await this.call("sendMessage", { chat_id: chatId, text: chunk, parse_mode: "Markdown" });
+      } catch (err) {
+        // The LLM's Markdown isn't guaranteed to be valid for Telegram's
+        // strict parser (unbalanced *, _, etc.) - fall back to plain text
+        // rather than dropping the reply entirely.
+        console.warn("sendMessage with Markdown parsing failed, retrying as plain text:", err);
+        await this.call("sendMessage", { chat_id: chatId, text: chunk });
+      }
     }
   }
 
