@@ -449,7 +449,7 @@ tasks:
   - id: TOOLS-005
     title: Notes tool
     phase: 5
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - TOOLS-001
@@ -457,7 +457,7 @@ tasks:
   - id: TOOLS-006
     title: Reminders tool
     phase: 5
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - TOOLS-001
@@ -465,7 +465,7 @@ tasks:
   - id: TOOLS-007
     title: Finance / crypto tool
     phase: 5
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - TOOLS-001
@@ -476,7 +476,7 @@ tasks:
   - id: PROACTIVE-001
     title: Scheduled task infrastructure
     phase: 6
-    status: pending
+    status: done
     priority: high
     depends_on:
       - TOOLS-007
@@ -500,7 +500,7 @@ tasks:
   - id: PROACTIVE-004
     title: Notification delivery
     phase: 6
-    status: pending
+    status: done
     priority: high
     depends_on:
       - PROACTIVE-003

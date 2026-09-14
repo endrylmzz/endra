@@ -4,6 +4,79 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-15 (2)
+
+Completed:
+
+- TOOLS-006 Reminders tool (set_reminder, list_reminders,
+  cancel_reminder)
+- PROACTIVE-001 Scheduled task infrastructure
+- PROACTIVE-004 Notification delivery
+- TOOLS-005 Notes tool (already done under TOOLARCH-009, just unmarked)
+- TOOLS-007 Finance / crypto tool (same - already done as
+  get_crypto_price)
+
+New architecture decision:
+
+- ADR-007 - Core stays channel-agnostic (ADR-004) for proactive/
+  outbound delivery too. Rather than Core calling Telegram's Bot API
+  directly, `apps/telegram-adapter` now exposes a tiny localhost-only
+  `POST /push` endpoint (plain `node:http`, no new dependency), guarded
+  by a shared secret. Core's scheduler calls that instead. No firewall
+  change needed - both services already share the `endra-core` VPS
+  (ADR-006) and reach each other over localhost, which is exactly the
+  access n8n integration was missing (see the TELEGRAM-002 entry
+  below).
+
+Changed:
+
+- New migration `20260915120000_scheduled_jobs.sql` - one-shot
+  reminders only (`id`, `user_id`, `conversation_id`, `content`,
+  `due_at`, `status`). Pushed to the live Supabase project via
+  `supabase db push`. Recurrence (PROACTIVE-002) and condition-based
+  monitors (PROACTIVE-003) are out of scope for this pass.
+- `apps/core/src/tools/builtin/reminders.ts` (new) - `set_reminder`
+  (write, no confirmation - low-stakes and easily cancelled),
+  `list_reminders` (read), `cancel_reminder` (write, requires
+  confirmation - mirrors `delete_note`'s reasoning: hard to undo,
+  user would have to remember and re-ask for the original time).
+- `apps/core/src/proactive/scheduler.ts` (new) - `findDueReminders()`
+  joins `scheduled_jobs` with `conversations` to get the delivery
+  channel and external conversation id; `checkAndDeliverDueJobs()`
+  delivers each due job and marks it `sent`/`failed`; `startScheduler()`
+  runs that on a 30s `setInterval`, started from `apps/core/src/index.ts`
+  right after the HTTP server starts listening. Unknown channels are
+  logged and skipped rather than erroring - only `telegram` has a
+  delivery path today.
+- `apps/core/src/proactive/deliver-telegram.ts` (new) - the only
+  channel-specific piece on Core's side: one `fetch` call to the
+  adapter's push endpoint.
+- `apps/telegram-adapter/src/push-server.ts` (new) - `processPushRequest()`
+  is a pure, fully-testable function (method/url/secret/body in,
+  status/body out); `startPushServer()` is the thin `node:http` wrapper
+  around it, bound to `127.0.0.1` only.
+- `ENDRA_INTERNAL_SECRET` went from an unused placeholder (reserved
+  since Phase 0) to an actual generated value, doing the job it was
+  always meant for. New env vars `TELEGRAM_PUSH_URL` (Core) and
+  `TELEGRAM_PUSH_PORT` (adapter), both with working defaults.
+
+Verified live against the real Supabase DB (not mocks): inserted a
+reminder, listed it, ran the actual due-reminder join query, ran
+`checkAndDeliverDueJobs` with a fake deliver function and confirmed the
+row flipped to `sent`, cancelled a second reminder - all cleaned up
+after. Also verified a real localhost HTTP round-trip between
+`deliverToTelegram` and `startPushServer`, including a rejected
+wrong-secret request (401).
+
+155 tests total, all passing (20 new). Clean build, clean lint, clean
+Prettier format across all 5 workspaces.
+
+Not yet deployed - needs a RepoCloud rebuild/restart, and
+`ENDRA_INTERNAL_SECRET`/`TELEGRAM_PUSH_URL`/`TELEGRAM_PUSH_PORT` set in
+each service's production environment.
+
+---
+
 ## 2026-09-15
 
 Completed:
@@ -21,7 +94,7 @@ Changed:
   union (`audio` | `image`); `attachments?` added to both the message
   request and response contracts.
 - `packages/agent-contracts/src/llm.ts` - `LLMMessage.imageUrls?:
-  string[]` for vision input.
+string[]` for vision input.
 - `apps/core/src/media/transcription.ts` (new) - `transcribeAudio()`
   via OpenAI `gpt-4o-transcribe`.
 - `apps/core/src/llm/openai-provider.ts` - maps `imageUrls` to OpenAI's

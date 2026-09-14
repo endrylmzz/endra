@@ -1,51 +1,60 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 3 (Tools) fully done, including multimodal input and image
-generation, **deployed and verified live in production** (RepoCloud
-rebuild confirmed via `/health` and an end-to-end Telegram pipeline
-check). Phases 1, 2, 4 done; two Phase 7 (Voice) tasks done early as
-part of the multimodal work.
+Phase 3 (Tools) fully done and deployed. Phases 1, 2, 4 done. Two
+Phase 7 (Voice) tasks and several Phase 5/6 tasks (reminders,
+scheduled delivery) done early, out of order, as real needs came up
+rather than waiting on the full phase sequence.
 
 Overall Progress:
-65% (see `npm run status`, computed from `docs/TASKS.yaml`)
+73% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**ENDRA can now hear, see, and draw.** Added to the tool-calling
-pipeline (`TOOLARCH-009`):
+**ENDRA can now remind Ender of things on its own.** New
+`set_reminder` / `list_reminders` / `cancel_reminder` tools
+(`TOOLS-006`), backed by a new `scheduled_jobs` table and an in-process
+scheduler in `apps/core` (`PROACTIVE-001`) that polls for due reminders
+every 30s and pushes them out (`PROACTIVE-004`). No new API key needed
 
-- Voice notes: Telegram voice messages are downloaded and transcribed
-  (OpenAI `gpt-4o-transcribe`) before being handed to the LLM as text.
-- Photos: Telegram photos are sent to the LLM as real vision input
-  (OpenAI `image_url` content parts on `gpt-5.6`), with the caption (if
-  any) as the accompanying text.
-- Image generation: new `generate_image` tool (OpenAI `gpt-image-1`).
-  Results bypass the LLM's text channel entirely - the image is
-  attached to the response and sent back to Telegram as an actual
-  photo (`sendPhoto`), not described in words.
-- Key-free tools: `get_crypto_price` (CoinGecko, no API key needed),
-  plus `list_notes` and `delete_note` (rounding out the existing
-  `save_note`/Supabase-backed notes tool).
+- built entirely on Supabase and Telegram, already configured.
 
-Verified live end-to-end against real APIs (not mocks): CoinGecko
-price lookup, Whisper-family transcription of a real audio file,
-vision reply to a real image, and a real `gpt-image-1` generation -
-all four succeeded. Full suite: 135/135 tests, clean build, clean
-lint, clean format across all 5 workspaces.
+New architecture piece (`ADR-007`): Core stays channel-agnostic - it
+doesn't call Telegram's Bot API itself. Instead, `apps/telegram-adapter`
+now also runs a tiny localhost-only `POST /push` endpoint, guarded by a
+shared secret (`ENDRA_INTERNAL_SECRET`, finally put to real use). Core's
+scheduler calls that endpoint to deliver a reminder; no firewall change,
+no public exposure - both services already share the same VPS.
+
+Verified live end-to-end against the real Supabase DB (not mocks): set
+a reminder, listed it, ran the actual due-reminder join query, marked
+it delivered, and cancelled a second one - all through real inserts/
+updates/deletes (cleaned up after). Also verified a real localhost
+HTTP round-trip between Core's delivery call and the adapter's push
+server, including a rejected wrong-secret request. 155/155 tests,
+clean build, clean lint, clean format.
+
+Along the way, also closed out three roadmap items that turned out to
+already be done or not worth doing right now: `MEMORY-008` (project
+memory already worked, just unmarked), `TOOLS-005`/`TOOLS-007` (notes
+and crypto tools already shipped under `TOOLARCH-009`), and
+`TELEGRAM-002` (n8n Telegram trigger - explored, real blockers found,
+explicitly skipped for now; see `docs/NEXT_ACTION.md`).
 
 Currently Working:
 (none)
 
 Blocked:
-None.
+None. **Not yet deployed** - this is a real production-behavior change
+(new scheduler running in Core, new endpoint on the adapter). Needs a
+RepoCloud rebuild + restart of both services, plus setting
+`ENDRA_INTERNAL_SECRET`/`TELEGRAM_PUSH_URL`/`TELEGRAM_PUSH_PORT` in
+each service's production environment (see `docs/NEXT_ACTION.md`).
 
 Next:
-`TELEGRAM-002` (n8n Telegram trigger workflow) explored and skipped
-for now - real blockers found (Core unreachable from n8n, no auth on
-Core's endpoint, Telegram allows only one active consumer). n8n API
-access is saved in `.env` for later. Decide which key-requiring tool
-to build next (weather, web search, calendar, Gmail - `TOOLS-001`
-suggested). See `docs/NEXT_ACTION.md`.
+Verify the reminder flow once live via a real Telegram message ("5
+dakika sonra şunu hatırlat"), then decide what's next - a key-requiring
+tool (weather, web search, calendar, Gmail - `TOOLS-001` suggested), or
+something else.
 
 Last Updated:
 2026-09-15

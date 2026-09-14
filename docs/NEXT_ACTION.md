@@ -3,14 +3,71 @@
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal input + image generation +
 key-free tools) is deployed and verified live in production (see
-DEVLOG 2026-09-15). `MEMORY-008` closed (already covered by existing
-`type: "project"` support - no code change needed). `TELEGRAM-002`
-(n8n Telegram trigger) explored and explicitly **skipped** for now -
-see below.
+DEVLOG 2026-09-15). Reminders (`TOOLS-006`, `PROACTIVE-001`,
+`PROACTIVE-004`) are built and tested locally against the real
+Supabase DB - **not yet deployed**, see below. `MEMORY-008`,
+`TOOLS-005`, `TOOLS-007` closed (already done under earlier work, just
+unmarked). `TELEGRAM-002` (n8n Telegram trigger) explored and
+explicitly **skipped** for now - see below.
 
 Goal:
-Decide which key-requiring tool to build next (weather, web search,
-calendar, Gmail - Phase 5, `TOOLS-001` suggested by `npm run next`).
+Deploy the reminders feature, verify once via a real Telegram message,
+then decide which key-requiring tool to build next (weather, web
+search, calendar, Gmail - Phase 5, `TOOLS-001` suggested by
+`npm run next`).
+
+## Current state - reminders (TOOLS-006, PROACTIVE-001, PROACTIVE-004)
+
+- New table `scheduled_jobs` (migration
+  `20260915120000_scheduled_jobs.sql`, already pushed to the live
+  Supabase project via `supabase db push`) - one-shot reminders only,
+  no recurrence yet (`PROACTIVE-002`/`PROACTIVE-003` are separate,
+  still pending).
+- `apps/core/src/tools/builtin/reminders.ts` - `set_reminder` (write,
+  no confirmation - low-stakes, easily cancelled), `list_reminders`
+  (read), `cancel_reminder` (write, requires confirmation - mirrors
+  `delete_note`'s reasoning).
+- `apps/core/src/proactive/scheduler.ts` - `findDueReminders()` (joins
+  `scheduled_jobs` with `conversations` for channel + external id),
+  `checkAndDeliverDueJobs()`, `startScheduler()` - an in-process
+  `setInterval` (30s) started from `apps/core/src/index.ts` right after
+  the HTTP server starts listening.
+- **New architecture decision, `ADR-007`**: Core must stay
+  channel-agnostic (ADR-004), so it doesn't call Telegram's Bot API
+  directly for proactive delivery. Instead
+  `apps/core/src/proactive/deliver-telegram.ts` calls a new local-only
+  endpoint, `POST /push`, that `apps/telegram-adapter/src/push-server.ts`
+  now exposes (`node:http`, bound to `127.0.0.1` only, guarded by
+  `X-Endra-Internal-Secret`). No firewall change needed - both services
+  already run on the same VPS (ADR-006) and reach each other over
+  localhost, unlike what n8n integration would need (see below).
+- `ENDRA_INTERNAL_SECRET` now has a real generated value in `.env` (it
+  was an empty placeholder before) - **must be set to the same value
+  in both Core's and the adapter's production environment**. New env
+  vars `TELEGRAM_PUSH_URL` (Core side, default
+  `http://127.0.0.1:3101/push`) and `TELEGRAM_PUSH_PORT` (adapter side,
+  default `3101`) - both have working defaults, no action needed
+  unless the port is already taken on the VPS.
+- Verified live against the real Supabase DB (not mocks): inserted a
+  reminder, listed it, ran the actual due-reminder join query, ran
+  `checkAndDeliverDueJobs` with a fake deliver function and confirmed
+  the row flipped to `sent`, cancelled a second reminder - all cleaned
+  up after. Also verified a real localhost HTTP round-trip between
+  `deliverToTelegram` and `startPushServer`, including a rejected
+  wrong-secret request.
+- 155 tests total, all passing (20 new). Clean build, clean lint,
+  clean Prettier format across all 5 workspaces.
+
+### Not yet deployed
+
+Sitting on `main`, not yet on the VPS. To go live: RepoCloud dashboard
+-> `endra-core` project -> "Resume Chat" -> ask the agent to pull
+latest, rebuild, restart both services, **and set
+`ENDRA_INTERNAL_SECRET`, `TELEGRAM_PUSH_URL`, `TELEGRAM_PUSH_PORT` in
+each service's environment** (copy the real secret value from local
+`.env` - never commit it). Then verify with a real Telegram message:
+ask for a reminder a minute or two out and confirm it actually arrives
+unprompted.
 
 ## TELEGRAM-002 (n8n) - explored, skipped for now
 
@@ -30,7 +87,7 @@ for now rather than push through the risk:
    firewall only allows SSH; Core's HTTP API is only reachable via
    localhost by `apps/telegram-adapter` on the same VPS. n8n runs as a
    separate managed container - it has no route to Core at all right
-   now. *Update:* the RepoCloud dashboard actually shows a default
+   now. _Update:_ the RepoCloud dashboard actually shows a default
    public domain for the VPS too (`vps-3737633d.vps.rcld.dev`,
    `148.251.160.63`) alongside SSH - worth re-checking with the
    RepoCloud agent whether any port is already open before assuming
@@ -67,7 +124,7 @@ generation, and only then activate it - ideally right after stopping
   `image_url` content parts.
 - `apps/core/src/tools/builtin/generate-image.ts` - `generate_image`
   tool, OpenAI `gpt-image-1`, returns `{ type: "image", data: base64,
-  mimeType }` on success.
+mimeType }` on success.
 - `apps/core/src/tools/builtin/crypto-price.ts` - `get_crypto_price`,
   free CoinGecko API, no key.
 - `apps/core/src/tools/builtin/notes.ts` - `save_note` (renamed from
