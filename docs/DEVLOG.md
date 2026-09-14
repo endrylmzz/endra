@@ -4,6 +4,78 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-15
+
+Completed:
+
+- TOOLARCH-009 Multimodal input (voice transcription, image vision) +
+  image generation tool + key-free tools (crypto price, list/delete
+  notes)
+- VOICE-001 Telegram voice note ingestion (done early, out of phase
+  order, as part of the above)
+- VOICE-002 Speech-to-text integration (same)
+
+Changed:
+
+- `packages/agent-contracts/src/message.ts` - new `EndraAttachment`
+  union (`audio` | `image`); `attachments?` added to both the message
+  request and response contracts.
+- `packages/agent-contracts/src/llm.ts` - `LLMMessage.imageUrls?:
+  string[]` for vision input.
+- `apps/core/src/media/transcription.ts` (new) - `transcribeAudio()`
+  via OpenAI `gpt-4o-transcribe`.
+- `apps/core/src/llm/openai-provider.ts` - maps `imageUrls` to OpenAI's
+  `image_url` content parts for vision.
+- `apps/core/src/tools/builtin/generate-image.ts` (new) -
+  `generate_image` tool via OpenAI `gpt-image-1`; `riskLevel: "write"`,
+  no confirmation required (idempotent, no state mutation beyond an
+  API call the user just asked for).
+- `apps/core/src/tools/builtin/crypto-price.ts` (new) -
+  `get_crypto_price`, free CoinGecko API, no key required.
+- `apps/core/src/tools/builtin/notes.ts` - renamed the existing tool
+  `notes` -> `save_note`; added `list_notes` (read) and `delete_note`
+  (write, requires confirmation, scoped by `id` AND `user_id`).
+- `apps/core/src/services/message-service.ts` - incoming audio
+  attachments are transcribed and folded into the message text before
+  the LLM sees it; incoming image attachments become `imageUrls`.
+  Outgoing: an image-producing tool result is diverted around the
+  LLM's text channel entirely - attached to the response directly,
+  with the LLM only told "image generated and sent to user" so it
+  never tries to describe or repeat raw base64 as text.
+- `apps/core/src/routes/message.ts` - request schema changed to
+  `anyOf`: accept either a non-empty `message` or a non-empty
+  `attachments` array (previously `message` alone was required).
+- `apps/telegram-adapter/src/telegram-api.ts` - added `downloadFile()`
+  (Telegram `getFile` + fetch, returns base64) and `sendPhoto()`
+  (multipart upload) to `TelegramClient`.
+- `apps/telegram-adapter/src/handle-update.ts` - detects `voice`/
+  `photo` on incoming updates and forwards them as attachments; sends
+  an image reply via `sendPhoto` instead of `sendMessage` when Core's
+  response carries one.
+- `apps/telegram-adapter` now depends on `@endra/agent-contracts` (new
+  workspace dependency) to share the `EndraAttachment` type.
+
+Verified live, end to end, against real APIs (no mocks): asked
+`get_crypto_price` for BTC/ETH in USD/TRY - real CoinGecko data
+returned; ran `transcribeAudio()` against a real audio file - real
+Whisper-family transcript returned; sent a real image through the
+vision path - `gpt-5.6` returned a sensible reply; ran
+`generate_image` - `gpt-image-1` returned a real generated image. All
+four succeeded on the first real API call.
+
+135 tests total, all passing (19 new since the last checkpoint: 1 for
+transcription, 3 for image generation, 4 for crypto price, plus
+extended coverage for notes list/delete, message-service attachment
+handling, the Fastify route's `anyOf` schema, and the Telegram
+adapter's voice/photo/sendPhoto paths). Clean build, clean lint, clean
+Prettier format across all 5 workspaces.
+
+Not yet deployed - needs a RepoCloud rebuild trigger, then one real
+Telegram verification (voice note, photo, and an image-generation
+request) before this is considered live.
+
+---
+
 ## 2026-09-14 (9)
 
 Completed:

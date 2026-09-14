@@ -1,26 +1,36 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 3 (Tools) fully done and **live in production** (pending a
-deploy trigger). Phases 1, 4 done; Phase 2 substantially deep.
+Phase 3 (Tools) fully done, now including multimodal input and image
+generation, **live in production** (pending a deploy trigger). Phases
+1, 4 done; Phase 2 substantially deep; two Phase 7 (Voice) tasks done
+early as part of this multimodal work.
 
 Overall Progress:
-61% (see `npm run status`, computed from `docs/TASKS.yaml`)
+64% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**ENDRA can now actually do things during a live conversation, not
-just talk.** Tool-calling is wired into `message-service.ts`:
-`get_current_time` and `calculator` run immediately; `notes` (write
-risk) asks for confirmation first, in the LLM's own natural Turkish
-phrasing (not a canned string) - and only executes if the user then
-says yes, using the exact arguments captured at the time it was first
-requested. Verified live end-to-end (real OpenAI + Supabase): asked
-for the time, did math, asked to save a note (got asked to confirm),
-confirmed it (note was saved), asked again and rejected it (note was
-NOT saved). Hit and fixed one real API issue along the way: gpt-5.6
-rejects function tools together with its default `reasoning_effort` on
-`/v1/chat/completions` - fixed by setting `reasoning_effort: "none"`
-when tools are present.
+**ENDRA can now hear, see, and draw.** Added to the tool-calling
+pipeline (`TOOLARCH-009`):
+
+- Voice notes: Telegram voice messages are downloaded and transcribed
+  (OpenAI `gpt-4o-transcribe`) before being handed to the LLM as text.
+- Photos: Telegram photos are sent to the LLM as real vision input
+  (OpenAI `image_url` content parts on `gpt-5.6`), with the caption (if
+  any) as the accompanying text.
+- Image generation: new `generate_image` tool (OpenAI `gpt-image-1`).
+  Results bypass the LLM's text channel entirely - the image is
+  attached to the response and sent back to Telegram as an actual
+  photo (`sendPhoto`), not described in words.
+- Key-free tools: `get_crypto_price` (CoinGecko, no API key needed),
+  plus `list_notes` and `delete_note` (rounding out the existing
+  `save_note`/Supabase-backed notes tool).
+
+Verified live end-to-end against real APIs (not mocks): CoinGecko
+price lookup, Whisper-family transcription of a real audio file,
+vision reply to a real image, and a real `gpt-image-1` generation -
+all four succeeded. Full suite: 135/135 tests, clean build, clean
+lint, clean format across all 5 workspaces.
 
 Currently Working:
 (none)
@@ -31,8 +41,8 @@ yet. Push a rebuild via the RepoCloud agent ("Resume Chat" -> ask it to
 pull/rebuild/restart) when ready to go live with this.
 
 Next:
-Ender's choice: something new now that ENDRA can act, or continue
-deepening Phase 2/5. See `docs/NEXT_ACTION.md`.
+Decide which key-requiring tools to build next (weather, web search,
+calendar, Gmail, etc.) - see `docs/NEXT_ACTION.md`.
 
 Last Updated:
-2026-09-14
+2026-09-15

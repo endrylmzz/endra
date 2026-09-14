@@ -329,6 +329,14 @@ tasks:
     depends_on:
       - TOOLARCH-007
 
+  - id: TOOLARCH-009
+    title: Multimodal input (voice transcription, image vision) + image generation tool + key-free tools (crypto price, list/delete notes)
+    phase: 3
+    status: done
+    priority: high
+    depends_on:
+      - TOOLARCH-008
+
   # ---------------------------------------------------------------------
   # Phase 4 - Telegram
   # ---------------------------------------------------------------------
@@ -511,7 +519,7 @@ tasks:
   - id: VOICE-001
     title: Telegram voice note ingestion
     phase: 7
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - PROACTIVE-005
@@ -519,7 +527,7 @@ tasks:
   - id: VOICE-002
     title: Speech-to-text integration
     phase: 7
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - VOICE-001
