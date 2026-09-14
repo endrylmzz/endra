@@ -1,36 +1,38 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 2 (Memory) substantially deepened; Phase 4 (Telegram) still the
-most complete phase overall.
+Phase 3 (Tool Architecture) done as a standalone, proven system - not
+yet wired into live chat. Phases 1, 4 fully done; Phase 2 substantially
+deep.
 
 Overall Progress:
-51% (see `npm run status`, computed from `docs/TASKS.yaml`)
+60% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**ENDRA now has real long-term memory, live in production.**
-MEMORY-004 (preferences), MEMORY-005 (semantic memory + embeddings),
-MEMORY-006 (multi-signal retrieval: semantic + keyword + importance +
-recency, not vector-only), MEMORY-007 (promotion pipeline: an LLM call
-decides what's worth remembering, dedups against existing memories via
-cosine similarity). Wired into `message-service.ts`: every reply now
-considers relevant past memories, and every exchange is considered for
-promotion in the background (fire-and-forget, never delays the reply).
-Verified live end-to-end (real OpenAI + Supabase, not just unit tests)
-with a two-turn conversation where ENDRA correctly recalled a stated
-preference.
+**Tool architecture (TOOLARCH-001 through 007), built around MCP.**
+`EndraTool` contract, `ToolRegistry`, `ToolRouter` (risk-based dispatch,
+confirmation flow with a real `approvals` table, audit logging via
+`tool_runs`), three native tools (`get_current_time`, `calculator`,
+`notes`), and a real MCP client wrapper. Verified live against Supabase
+(read tool execute, write tool confirm/reject/double-confirm-refused
+flow, audit trail) AND against a real MCP server
+(`@modelcontextprotocol/server-everything`, spawned via stdio) - listed
+its 13 tools and executed one (`get-sum`) for real through the router.
 
 Currently Working:
 (none)
 
 Blocked:
-None. Note: this roughly doubles OpenAI cost per message (an extra
-extraction call + a couple of cheap embedding calls) - negligible for
-a single-user assistant, but worth knowing.
+None. **Deliberately not done yet**: wiring tool-calling into the live
+`message-service.ts` LLM loop (i.e. OpenAI actually deciding to call a
+tool mid-conversation, in production). This needs
+`OpenAIProvider.generate()` extended to support function-calling first,
+and changes live chat behavior - ask before turning it on.
 
 Next:
-Phase 3 (Tool Architecture) using MCP (Model Context Protocol) as the
-tool-calling layer, per Ender's direction - see `docs/NEXT_ACTION.md`.
+Ender's choice: wire tools into live chat, keep building out Phase 2
+(MEMORY-008 project memory - probably trivial now), or something else.
+See `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-14

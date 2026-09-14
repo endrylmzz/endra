@@ -1,101 +1,84 @@
 # NEXT ACTION
 
 Continue task:
-Phase 3 (Tool Architecture) - `TOOLARCH-001` onward. Ender approved
-building this around MCP (Model Context Protocol) rather than a fully
-bespoke system, after researching current (2026) agent architecture
-practice.
+None in progress. Tool architecture is built and proven standalone.
+The next real decision is whether to wire it into live chat now.
 
 Goal:
-Give ENDRA the ability to actually do things (not just talk), starting
-with the foundation: a tool contract, registry, router, risk/permission
-levels, confirmation flow for risky actions, and run logging - then
-prove it works against a real MCP server before calling it done.
+Decide: flip on tool-calling in production (`message-service.ts`), or
+keep building other things first.
 
-## Research findings this session (informing both Phase 2 and Phase 3)
+## Current state - Phase 3 (Tools), built and proven, not yet live
 
-- Memory: multi-signal fusion (semantic + keyword + importance +
-  recency) beats vector-similarity-alone retrieval - already
-  implemented (MEMORY-006). "ADD-only" extraction (treat both user
-  statements and assistant confirmations as memory candidates) - also
-  implemented (MEMORY-007).
-- Tools: MCP (Anthropic-originated, now also officially supported by
-  OpenAI's Agents SDK) standardizes tool discovery/execution so tools
-  aren't hand-built one by one. Confirmed: **MCP itself has no
-  standard authorization/confirmation layer at the tool-call boundary**
-  - that part is still ENDRA-specific work, not something MCP gives
-    for free. This matches CLAUDE.md's original section 20 design
-    (`pending_action`/`approval_id`/`expires_at`) - the plan doesn't
-    change, just how tools are sourced/invoked does.
-- Decision: adopt MCP as the tool-calling layer for Phase 3, but keep
-  building ENDRA's own permission/confirmation/audit layer on top,
-  since that's the part with no existing standard.
+- `packages/agent-contracts/src/tool.ts` - `EndraTool`,
+  `ToolExecutionContext` (had to add this - `execute(input)` alone
+  can't know which user is calling, e.g. for the `notes` tool;
+  CLAUDE.md's original sketch didn't have this, added it once actually
+  implementing revealed the gap), `ToolRiskLevel`, `ToolResult`.
+- `apps/core/src/tools/registry.ts` - `ToolRegistry` (register/get/list).
+- `apps/core/src/tools/router.ts` - `ToolRouter.route()` (dispatches;
+  confirmation-required tools create a pending approval instead of
+  executing) and `.confirm()` (always executes with the arguments
+  stored at approval time - never anything supplied later).
+- `apps/core/src/tools/approvals.ts` + new `approvals` table -
+  `pending`/`approved`/`rejected`/`expired`, 5-minute TTL.
+- `apps/core/src/tools/tool-run-log.ts` + new `tool_runs` table - same
+  never-throws-on-its-own-failure pattern as `agent_runs`.
+- `apps/core/src/tools/builtin/`: `get_current_time` (read),
+  `calculator` (read - has its own safe recursive-descent arithmetic
+  parser, no `eval()` on LLM-influenced input), `notes` (write,
+  `requiresConfirmation: true`, new `notes` table - the deliberate
+  first tool to exercise the full confirmation flow).
+- `apps/core/src/tools/mcp-client.ts` - `connectMcpServer()` +
+  `loadMcpTools()`, wraps any MCP server's tools as `EndraTool`s.
+  **Important caveat documented in the file**: MCP has no risk/
+  confirmation concept, so wrapped tools default to `read`/no-
+  confirmation - safe only for a reviewed server. A new real MCP
+  server (Phase 5+) needs explicit `overrides` for anything that
+  mutates state or costs money - never trust the default there.
+- Verified live twice: (1) full router flow against real Supabase -
+  read tool executes immediately, write tool creates a pending
+  approval, confirming executes with the stored arguments, confirming
+  the same approval twice is correctly refused, full audit trail in
+  `tool_runs`; (2) real MCP server connection
+  (`@modelcontextprotocol/server-everything` via stdio/npx) - listed
+  its 13 real tools, called `get-sum` through the router, got the
+  correct real result.
+- 99 tests total now, all passing.
 
-## Current state - Phase 2 (Memory), now substantially deeper
+## The actual next decision
 
-- `apps/core/src/memory/preferences.ts` - `getPreference`/`setPreference`,
-  backed by a new `preferences` table (unique on `user_id, key`).
-- `apps/core/src/memory/embeddings.ts` - `embedText()`, OpenAI
-  `text-embedding-3-small`.
-- `apps/core/src/memory/semantic-memory.ts` - `saveMemory`,
-  `searchMemories` (fused ranking via the `search_memories` Postgres
-  function), `findSimilarMemory` (pure cosine similarity, for dedup).
-- `apps/core/src/memory/promotion.ts` - `extractMemoryCandidates`
-  (one LLM call, JSON-parsed, empty array on any parse failure - never
-  throws over a formatting quirk), `promoteMemories` (dedup then
-  save).
-- New migrations: `memories` (+ pgvector, + generated `tsvector`
-  column for keyword search), `preferences`, `search_memories()` and
-  `find_similar_memory()` SQL functions.
-- `message-service.ts` now: searches memories before calling the LLM
-  (appended to the system prompt if any are found), and fires off
-  extraction+promotion in the background after replying (never
-  awaited - a promotion failure is logged to `console.error` and
-  otherwise invisible to the user).
-- Verified live (real OpenAI + Supabase): a two-turn conversation where
-  a stated preference ("favori rengim mavi") was promoted to long-term
-  memory and correctly surfaced in a later, unrelated-topic turn.
-- **Not done, not started**: `MEMORY-008` (project memory - arguably
-  now just a `type: "project"` memory, may not need separate work),
-  entity-aware relevance boosting (research mentioned this as a further
-  refinement beyond the 4-signal fusion already implemented - skipped
-  for now, real complexity/cost tradeoff, revisit if retrieval quality
-  turns out to need it).
+**Wiring tools into live chat** means: extend `OpenAIProvider` (or add
+a new method) to pass tool definitions to OpenAI's function-calling API,
+have `message-service.ts` loop (LLM responds -> maybe wants a tool ->
+route it -> feed the result back to the LLM -> maybe another tool ->
+... -> final text reply), and register `getCurrentTimeTool`,
+`calculatorTool`, `createNotesTool()` (and decide whether to also
+connect a real MCP server, or leave that for Phase 5) into a registry
+at startup.
 
-## Phase 3 (Tools) - plan
+This is a genuine production-behavior change (every message could now
+trigger 1+ tool-call round-trips, more OpenAI cost/latency, and -
+crucially - the `notes` tool means ENDRA could actually write to the
+database as a result of a live conversation for the first time). Don't
+flip this on without confirming with Ender first, the same way the
+first real OpenAI/Supabase calls were confirmed earlier this session.
 
-1. `TOOLARCH-001` `EndraTool` contract in `packages/agent-contracts`
-   (name, description, category, riskLevel, requiresConfirmation,
-   inputSchema, `execute()`) - matches CLAUDE.md section 18 closely.
-2. `TOOLARCH-002`/`003` Tool Registry + Router in `apps/core/src/tools/`.
-3. `TOOLARCH-004`/`005` Risk levels (read/write/critical) +
-   confirmation state, backed by a new `approvals` table
-   (`pending_action`/`approval_id`/`expires_at`, per CLAUDE.md
-   section 20) - critical/requires-confirmation tools never execute
-   immediately, they create a pending approval instead.
-4. `TOOLARCH-006` Tool run logging - new `tool_runs` table, same
-   never-throws-on-its-own-failure pattern as `agent_runs`.
-5. `TOOLARCH-007` First test tools: `get_current_time`, `calculator`
-   (both `read`, no confirmation), `notes` (`write`, Supabase-backed,
-   new `notes` table).
-6. MCP proof: connect to `@modelcontextprotocol/server-everything`
-   (Anthropic's official reference/test server - runs locally via
-   stdio, no account/API key needed) using `@modelcontextprotocol/sdk`,
-   list its tools, wrap them as `EndraTool` instances via the registry,
-   and execute one for real.
-7. **Not in this pass**: actually wiring tool-calling into
-   `message-service.ts`'s live LLM loop (i.e. OpenAI deciding to call
-   a tool mid-conversation, in production). Build and verify the
-   architecture standalone first, the same way LLM providers and
-   memory were built before being wired in - ask before flipping that
-   on in production, since it changes live chat behavior and adds a
-   tool-call round-trip to every message.
+## Other open items (not blocking, just tracked)
+
+- `MEMORY-008` (project memory) - likely just documenting that
+  `type: "project"` in the existing `memories` table already covers
+  this; confirm rather than build something new.
+- Deployment/24-7 question from earlier (RepoCloud vs elsewhere) -
+  currently resolved via the RepoCloud VPS (ADR-006); nothing more to
+  do unless it stops being sufficient.
+- Real external tools (weather, web search, calendar, Gmail - Phase 5)
+  will need their own API keys/OAuth - ask for the specific credential
+  only when building that specific tool.
 
 Important:
-
-- Real external tools (weather, web search, calendar, Gmail - Phase 5)
-  will likely need their own API keys/OAuth once we get there - ask
-  Ender for the specific credential only when that specific tool is
-  being built, not preemptively.
-- Keep verifying with real end-to-end tests (not just mocks) before
-  marking anything done, per this session's established practice.
+Every piece built this session (LLM providers, memory, tools) followed
+the same shape: build standalone -> unit test with injected fakes ->
+verify with a real end-to-end call -> only then wire into production,
+asking first when the wiring changes live behavior meaningfully. Keep
+doing that.

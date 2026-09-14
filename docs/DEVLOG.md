@@ -4,6 +4,72 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (8)
+
+Completed:
+
+- TOOLARCH-001 through 007 (EndraTool contract, registry, router,
+  permission/risk levels, confirmation system, tool run logging, first
+  test tools) - all of Phase 3.
+
+Changed:
+
+- Researched MCP (Model Context Protocol) and current agent tool-use
+  practice before building: confirmed MCP standardizes tool discovery/
+  execution (OpenAI's Agents SDK officially supports it too) but has
+  **no standard authorization/confirmation layer** - that part stayed
+  fully custom, matching CLAUDE.md's original section 20 design.
+- Added `EndraTool`/`ToolExecutionContext`/`ToolRiskLevel`/`ToolResult`
+  to `packages/agent-contracts`. Had to add `ToolExecutionContext` to
+  `execute()` beyond CLAUDE.md's original sketch - discovered while
+  implementing `notes` that a tool needs to know _which user_ it's
+  acting for, and `execute(input)` alone can't express that.
+- Added `apps/core/src/tools/`: `registry.ts`, `router.ts` (dispatch +
+  confirm, with confirm always using the arguments stored at approval
+  time, never new ones), `approvals.ts` (+ new `approvals` table,
+  5-minute TTL), `tool-run-log.ts` (+ new `tool_runs` table, same
+  never-throws pattern as `agent_runs`).
+- Added `builtin/get_current_time.ts`, `builtin/calculator.ts` (own
+  safe recursive-descent arithmetic parser - deliberately no `eval()`
+  on LLM-influenced input), `builtin/notes.ts` (write,
+  `requiresConfirmation: true`, + new `notes` table - chosen
+  specifically to exercise the full confirmation flow).
+- Added `mcp-client.ts`: `connectMcpServer()` (stdio transport) +
+  `loadMcpTools()` (wraps an MCP server's tools as `EndraTool`s).
+  Documented clearly in the file that MCP tools default to
+  read/no-confirmation since MCP has no risk metadata - only safe for
+  a reviewed server; real future MCP servers need explicit overrides.
+- 21 new tests (registry, approvals, tool-run-log, router, 3 built-in
+  tools, mcp-client) - all against injected fakes, no real network.
+- Verified live, twice: (1) the full router flow against real Supabase
+  - read tool executes immediately; write tool (`notes`) creates a
+    pending approval instead of executing; confirming executes with the
+    stored arguments and actually inserts the note; confirming the same
+    approval a second time is correctly refused; full audit trail
+    visible in `tool_runs`. (2) A **real MCP server**
+    (`@modelcontextprotocol/server-everything`, official reference/test
+    server, spawned via `npx` over stdio - no account needed) - listed
+    its 13 real tools, called `get-sum` through the router, got the
+    correct real result back.
+
+Problems:
+
+- None in the actual code. My own smoke-test script passed a
+  non-UUID string as `conversationId` when calling the MCP tool, which
+  made the `tool_runs` insert fail - `logToolRun`'s
+  never-throw-on-its-own-failure design caught it exactly as intended
+  (logged to `console.error`, the actual tool call still succeeded and
+  returned the correct result). A nice unplanned confirmation that the
+  fail-safe logging pattern works, not a bug.
+
+Next:
+
+- Real decision: wire tool-calling into the live `message-service.ts`
+  LLM loop now, or keep building elsewhere first. Deliberately not
+  done in this pass - see `docs/NEXT_ACTION.md`.
+
+---
+
 ## 2026-09-14 (7)
 
 Completed:

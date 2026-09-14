@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.124.0",
     "@endra/agent-contracts": "*",
     "@endra/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@supabase/supabase-js": "^2.116.0",
     "fastify": "^5.12.3",
     "openai": "^7.15.0"

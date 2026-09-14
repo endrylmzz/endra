@@ -3,3 +3,4 @@
 
 export * from "./message.js";
 export * from "./llm.js";
+export * from "./tool.js";
