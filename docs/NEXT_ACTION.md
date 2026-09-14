@@ -1,63 +1,68 @@
 # NEXT ACTION
 
 Continue task:
-Wire `message-service.ts` up for real - this is the immediate next
-step, already in progress in this same session.
+None in progress. Phase 1 (ENDRA Core) is fully done. Next is a real
+choice between three directions - see below.
 
 Goal:
-Every piece Core needs to give a real ENDRA reply now exists in
-isolation and is tested (including against the real Supabase
-database): identity resolution, message persistence, an LLM provider,
-a persona, and agent run logging. None of them are connected together
-yet - `POST /api/v1/message` still returns the static stub from
-`services/message-service.ts`.
+Nothing left to unblock in Core - `POST /api/v1/message` is a real,
+working, persona-driven, persisted, logged pipeline. What's next is
+about which capability to build on top of it.
 
 Current state:
 
-- `apps/core/src/identity/resolve-identity.ts` — `resolveIdentity({channel, externalUserId, externalConversationId})`
-  → `{userId, conversationId}` (internal Supabase ids), find-or-create.
-- `apps/core/src/memory/messages.ts` — `saveMessage(conversationId, {role, content})`,
-  `getRecentMessages(conversationId, limit)`.
-- `apps/core/src/llm/openai-provider.ts` — `OpenAIProvider`, active default.
-- `apps/core/src/persona/load-persona.ts` — `loadPersona()`.
-- `apps/core/src/observability/agent-run-log.ts` — `logAgentRun({...})`,
-  never throws (logs to `console.error` and continues on failure - a
-  logging outage must not break the actual response).
-- All backed by real, applied Supabase migrations (`users`,
-  `conversations`, `messages`, `agent_runs`).
+- `apps/core/src/services/message-service.ts` — `handleMessage()`,
+  the full pipeline: `resolveIdentity` → `getRecentMessages` →
+  `saveMessage` (user) → `OpenAIProvider.generate()` (with
+  `loadPersona()` as system prompt) → `saveMessage` (assistant) →
+  `logAgentRun`. Takes an optional `deps` param (same
+  injectable-dependency pattern as every other module) so it's
+  testable without hitting real APIs - see
+  `services/message-service.test.ts`.
+- `apps/core/src/app.test.ts` mocks `services/message-service.js`
+  entirely (`vi.mock`) so HTTP-level tests stay pure routing tests;
+  the service's own logic is tested separately with injected fakes.
+- Verified against the real live stack (not just mocks): sent two real
+  messages through the running server to the real OpenAI + Supabase -
+  second message correctly recalled the first (`"Biraz önce sana ne
+sordum, hatırlıyor musun?"` → correct answer), confirming
+  conversation history actually works end-to-end. All smoke-test rows
+  were deleted afterward - nothing fake left in the real database.
+- `.env` still isn't auto-loaded by any npm script - manual smoke
+  tests used `node --env-file=.env`. Not wired into `start`/`dev` yet.
 
-The wiring itself (`services/message-service.ts`, replacing the
-current stub `handleMessage`):
+## What's next - three real options
 
-1. `resolveIdentity({channel, externalUserId: userId, externalConversationId: conversationId})`
-2. `getRecentMessages(resolvedConversationId)` for history
-3. `saveMessage(resolvedConversationId, {role: "user", content: message})`
-4. Call `OpenAIProvider.generate({systemPrompt: loadPersona(), messages: [...history, {role: "user", content: message}]})`,
-   timing it (for `durationMs`)
-5. `saveMessage(resolvedConversationId, {role: "assistant", content: reply.content})`
-6. `logAgentRun({conversationId, userId, provider: "openai", model, status, durationMs, inputTokens, outputTokens, errorMessage?})` -
-   on both success and failure (wrap in try/catch, log status: "error" and rethrow so the route's existing error handler still returns a proper error response)
-7. Return `{message: reply.content, conversationId: <the original external one, not the internal Supabase id>}` -
-   keep the response contract's `conversationId` meaning "the id you
-   gave me", not leaking the internal Supabase id.
+**A. Deeper into Phase 2 (Memory)** — `MEMORY-004` (preferences),
+`MEMORY-005` (semantic memory + embeddings), `MEMORY-006` (retrieval
+ranking), `MEMORY-007` (promotion pipeline). Makes ENDRA remember
+things across conversations, not just within one - the core "second
+brain" value proposition (CLAUDE.md section 1/21).
 
-Once this works, CORE-008 (standard response format) should already be
-satisfied by the existing `{success, data}` / `{success, error}`
-envelope from CORE-001 - confirm that's still true rather than
-re-mark it pending.
+**B. Phase 3 (Tool Architecture)** — `EndraTool` contract, registry,
+router, permission/risk levels, confirmation system. Needed before
+ENDRA can _do_ anything beyond talk (weather, web search, calendar,
+Gmail, reminders - all of Phase 5 depends on this existing first).
+
+**C. Phase 4 (Telegram)** — the message pipeline already works, so
+wiring Telegram now would let Ender actually use ENDRA day-to-day from
+his phone, ahead of where the original roadmap put it (Phase 4 was
+planned after Phase 3). `TELEGRAM_BOT_TOKEN` is already sitting in
+`.env`, unused. Real, tangible value sooner, at the cost of
+deviating from the planned phase order (same kind of deliberate
+reordering already done once this session for Phase 2).
+
+No task is marked `in_progress` right now - whichever direction gets
+picked, mark it in `docs/TASKS.yaml` before starting, per the usual
+task cycle.
 
 Important:
 
-- Test this with the injected/fake clients already established for
-  each piece (`OpenAIProvider`, Supabase client) - don't make the unit
-  test suite hit real APIs. Do one real end-to-end manual smoke test
-  (like the ones already done for OpenAI, Supabase, identity,
-  messages, and agent_runs individually) to confirm the whole chain
-  works together before calling this done.
-- `.env` still isn't auto-loaded by any npm script (`node --env-file=.env`
-  has only been used manually for smoke tests) - decide whether to
-  wire that into `start`/`dev` now that Core actually needs env vars
-  to function, or leave it for whenever real deployment is set up.
-- Not started yet, no task ID: OpenAI for voice (Phase 7) / image
-  generation tooling, wiring `.env` loading into npm scripts, Telegram
-  (Phase 4, token already sits in `.env` unused).
+- Keep doing real end-to-end smoke tests (not just unit tests with
+  fakes) before marking anything `done`, the way every piece has been
+  verified this session - it's caught real bugs before (the
+  `removeAdditional` Fastify default, back in CORE-001).
+- Don't design/build more than the next concrete task needs - this
+  session already avoided over-building the Phase 2 schema and the
+  `LLMProvider` interface (no streaming/tool-calling) for exactly this
+  reason.

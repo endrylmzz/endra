@@ -19,7 +19,7 @@ export async function registerMessageRoute(app: FastifyInstance): Promise<void> 
     "/message",
     { schema: { body: messageBodySchema } },
     async (request) => {
-      const data = handleMessage(request.body);
+      const data = await handleMessage(request.body);
       return { success: true, data };
     },
   );

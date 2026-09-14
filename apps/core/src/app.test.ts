@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
+import { describe, expect, it, vi } from "vitest";
+
+// app.ts wires up the real message-service, which calls out to OpenAI
+// and Supabase - mock it here so these are pure HTTP/routing tests
+// (does the route call the service and wrap its result correctly?).
+// The service's own logic is tested in services/message-service.test.ts
+// with injected fake dependencies.
+vi.mock("./services/message-service.js", () => ({
+  handleMessage: vi.fn(async (request: { conversationId: string }) => ({
+    message: "ENDRA Core is running.",
+    conversationId: request.conversationId,
+  })),
+}));
+
+const { buildApp } = await import("./app.js");
 
 const app = buildApp({ logger: false });
 

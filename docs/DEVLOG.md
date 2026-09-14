@@ -4,6 +4,53 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (4)
+
+Completed:
+
+- CORE-008 Standard ENDRA response format (confirmed already satisfied
+  by the existing envelope, no changes needed)
+- **Phase 1 (ENDRA Core) - fully done.**
+
+Changed:
+
+- Rewrote `services/message-service.ts`: `handleMessage()` now runs
+  the real pipeline (identity → history → LLM → persist → log)
+  instead of returning a static stub. Takes an optional `deps` param
+  for dependency injection (same pattern used everywhere else in this
+  codebase), so it stays unit-testable without hitting OpenAI or
+  Supabase.
+- `routes/message.ts` now awaits `handleMessage` (it's async now).
+- Added `services/message-service.test.ts` (2 tests, injected fakes).
+- Updated `app.test.ts` to `vi.mock` the message-service module,
+  keeping its tests as pure HTTP/routing tests instead of hitting real
+  external services.
+- Verified live, twice: sent two real messages through the running
+  server against the real OpenAI + Supabase stack. The persona showed
+  up correctly in the reply, and the second message correctly recalled
+  the first one, proving conversation history actually works, not just
+  that it compiles. Cleaned up all smoke-test rows afterward (users,
+  conversations, messages cascade-deleted; agent_runs rows had to be
+  deleted separately since `ON DELETE SET NULL` orphans them instead
+  of removing them - worth remembering for future manual cleanup).
+
+Problems:
+
+- None blocking. Noted for later: `agent_runs.conversation_id`/`user_id`
+  use `ON DELETE SET NULL` (keep the audit log even if the
+  conversation/user is later deleted) rather than `CASCADE` - correct
+  design choice, but means deleting a conversation doesn't clean up
+  its agent_runs rows automatically.
+
+Next:
+
+- Real fork in the road: deeper into Phase 2 (memory), Phase 3 (tool
+  architecture), or jump to Phase 4 (Telegram - Core already works, so
+  this would give Ender a usable interface sooner than the original
+  phase order planned). See `docs/NEXT_ACTION.md`.
+
+---
+
 ## 2026-09-14 (3)
 
 Completed:

@@ -1,31 +1,31 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 2 — Persistent Memory
+Phase 2 — Persistent Memory (Phase 1 — ENDRA Core is now fully done)
 
 Overall Progress:
-33% (see `npm run status`, computed from `docs/TASKS.yaml`)
+35% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-CORE-003/004 (user identity + conversation context, backed by
-Supabase find-or-create), MEMORY-003 (message persistence - save +
-retrieve history), and CORE-009 (agent run logging, `agent_runs`
-table). All verified against the real Supabase database, not just unit
-tests.
+**Phase 1 (ENDRA Core) complete.** `/api/v1/message` now gives a real,
+persona-driven OpenAI reply end-to-end: resolves identity → loads
+conversation history → calls the LLM with ENDRA's persona → persists
+both sides → logs the run. Verified against the real live stack
+(Supabase + OpenAI), including a follow-up message that correctly
+recalled prior conversation context. Smoke-test data was cleaned up
+afterward.
 
 Currently Working:
-Wiring all of this together so `/api/v1/message` returns a real
-OpenAI-backed reply instead of the static stub - the last step before
-Phase 1 (Core) is functionally complete end-to-end.
+(none)
 
 Blocked:
 None
 
 Next:
-Finish the message-service.ts wiring (identity → history → LLM →
-persist → log → respond), then CORE-008 (should fall out of that work
-almost for free), then deeper into Phase 2 (MEMORY-004+) or Phase 3
-(tools).
+Deeper into Phase 2 — MEMORY-004 (preferences) or MEMORY-005 (semantic
+memory/embeddings) — or start Phase 3 (Tool Architecture), or Phase 4
+(Telegram, token already sits in `.env` unused). See
+`docs/NEXT_ACTION.md` for the tradeoffs.
 
 Last Updated:
 2026-09-14
