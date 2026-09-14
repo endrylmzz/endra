@@ -4,6 +4,64 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (6)
+
+Completed:
+
+- TELEGRAM-009 Deploy Core + Telegram adapter to production
+
+Changed:
+
+- Made `github.com/endrylmzz/endra` public (was private) so RepoCloud's
+  deploy form could clone it directly - verified first with
+  `git log --all -p` grepping for known secret/token fragments across
+  full history, found none (only a Telegram user id, not a credential).
+- Renamed local branch `master` → `main` to match GitHub convention
+  before the initial push.
+- Added a root `start` script (`node apps/core/dist/index.js`) - a
+  monorepo has no single obvious entry point for a generic deploy
+  tool otherwise.
+- Deployed via RepoCloud's "Deploy App to Virtual Private Server" flow
+  (their AI agent handles provisioning + setup from custom
+  instructions describing the build/start/health-check contract).
+  Result: both apps run as systemd services on a $6/mo VPS, dedicated
+  non-root user, firewall deny-all except SSH, journal log rotation,
+  nightly auto-update cron that pulls `main` and rebuilds.
+- Pasted real secrets into the RepoCloud agent's chat once (Ender did
+  this, not committed anywhere) to populate `/opt/endra/.env` on the
+  server.
+- Fixed a live bug: two Telegram long-polling consumers (the VPS and a
+  local dev instance I'd left running) fought over the same bot token
+  ("Conflict: terminated by other getUpdates request"). Killed the
+  local processes - not a code bug, an operational one.
+- Fixed a real formatting bug found via live use: Telegram showed
+  literal `**bold**`/`- lists` instead of rendering them, since
+  `sendMessage` never set `parse_mode`. Now sends with
+  `parse_mode: "Markdown"`, falling back to plain text if Telegram's
+  strict parser rejects the LLM's output. 2 new tests.
+- Verified via Supabase query (not just "Ender says it worked") that a
+  real Telegram message produced a real `agent_runs` row with
+  `status: "success"` after the fix.
+
+Problems:
+
+- The Telegram getUpdates conflict above - resolved, noted for future
+  sessions: never leave a local `apps/telegram-adapter` running once
+  production is handling the same bot token.
+- RepoCloud's "Coolify VPS" marketplace listing turned out to be a
+  dead end - it just links to Coolify's own generic external install
+  docs rather than provisioning anything through RepoCloud. The actual
+  path that worked was RepoCloud's own native "Deploy App to Virtual
+  Private Server" form (GitHub repo → dedicated VPS), unrelated to the
+  Coolify listing.
+
+Next:
+
+- Ender's choice: deeper memory (Phase 2), tools (Phase 3), or
+  something that comes up from actually using ENDRA day to day now.
+
+---
+
 ## 2026-09-14 (5)
 
 Completed:

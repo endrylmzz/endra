@@ -387,6 +387,14 @@ tasks:
     depends_on:
       - TELEGRAM-005
 
+  - id: TELEGRAM-009
+    title: Deploy Core + Telegram adapter to production (RepoCloud VPS) for 24/7 availability
+    phase: 4
+    status: done
+    priority: high
+    depends_on:
+      - TELEGRAM-005
+
   # ---------------------------------------------------------------------
   # Phase 5 - Useful Tools
   # ---------------------------------------------------------------------

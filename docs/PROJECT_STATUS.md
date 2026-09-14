@@ -1,32 +1,33 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 4 — Telegram (mostly done - jumped ahead of Phase 3 deliberately,
-see ADR-005)
+Phase 4 — Telegram (fully done except the eventual n8n workflow,
+TELEGRAM-002 - see ADR-005)
 
 Overall Progress:
-44% (see `npm run status`, computed from `docs/TASKS.yaml`)
+45% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Ender can now talk to ENDRA from his phone via Telegram (@endraaibot).**
-`apps/telegram-adapter` long-polls Telegram and calls ENDRA Core
-directly (bypassing n8n for now - ADR-005, since RepoCloud/n8n access
-wasn't set up yet). Verified live: Ender sent real messages through
-Telegram and got real ENDRA replies. Only `TELEGRAM-002` (the eventual
-n8n workflow) remains pending in Phase 4.
+**ENDRA is deployed and running 24/7.** `apps/core` and
+`apps/telegram-adapter` run as systemd services on a RepoCloud VPS
+(`vps-3737633d.vps.rcld.dev`), deployed via RepoCloud's AI deploy
+agent from the public GitHub repo (`github.com/endrylmzz/endra`).
+Ender can message @endraaibot from his phone any time, machine off or
+not. Also fixed: Telegram was showing raw `**markdown**` instead of
+rendering it - `sendMessage` now uses `parse_mode: "Markdown"` with a
+plain-text fallback if Telegram's strict parser rejects something.
 
 Currently Working:
-(none) - both `apps/core` and `apps/telegram-adapter` are running
-locally (manually started) for Ender to keep using.
+(none)
 
 Blocked:
-None functionally, but noted as unresolved: whether/how to deploy
-`apps/core` + the Telegram integration somewhere persistent (RepoCloud
-or elsewhere) for 24/7 availability - see `docs/NEXT_ACTION.md`.
+None. Local dev machine no longer runs Core/adapter for Ender's daily
+use - only for development/testing going forward.
 
 Next:
-Either deeper into Phase 2 (memory), Phase 3 (tools), or resolving the
-deployment/24-7 question. Ender's call - see `docs/NEXT_ACTION.md`.
+Ender's choice: deeper memory (Phase 2), tools (Phase 3), or something
+else entirely now that ENDRA is actually usable day-to-day. See
+`docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-14

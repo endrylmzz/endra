@@ -1,66 +1,71 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. Ender is actively using the Telegram bot right now -
-next step is his call (deeper memory, tools, or sort out deployment).
+None in progress. ENDRA is deployed and working 24/7 - this is a real
+milestone (see CLAUDE.md section 49's MVP definition: "Telegram
+üzerinden konuşabiliyorum" is now true). Next is Ender's call again.
 
 Goal:
-Phase 1 (Core) is done. Phase 4 (Telegram) is done except the eventual
-n8n workflow (`TELEGRAM-002`, deliberately deferred - see ADR-005).
-Ender can talk to ENDRA from his phone today.
+Nothing blocking. What's next is which capability to build on top of
+a now-live system.
 
-Current state - Telegram (`apps/telegram-adapter`):
+Current state - Production deployment:
 
-- Bot: `@endraaibot` (name "E.N.D.R.A"). Token was revoked and
-  regenerated once already this session (the original token given
-  turned out to be invalid/revoked) - current one is in `.env`.
-- `ENDRA_ALLOWED_TELEGRAM_USERS=1028764118` - Ender's Telegram user id,
-  captured from an "unauthorized" log line the first time he messaged
-  the bot before the allowlist was set. Only this id can reach ENDRA
-  Core via Telegram.
-- Long-polling adapter, no webhook/public URL needed. Verified live:
-  Ender sent messages through Telegram, got real ENDRA replies back.
-- **Only runs while manually started.** Both `apps/core` and
-  `apps/telegram-adapter` were started by hand this session
-  (`node --env-file=.env dist/index.js` in each) and are currently
-  still running so Ender can keep chatting. If either process is
-  killed (or the machine restarts), the bot stops responding until
-  both are started again - there is no supervisor/service manager yet.
-- `TELEGRAM-002` (n8n Telegram trigger workflow) is intentionally not
-  done - this whole adapter is a temporary bridge per ADR-005.
+- Host: RepoCloud VPS, `vps-3737633d.vps.rcld.dev`, project name
+  `endra-core`, cheapest tier (1 vCPU/2GB RAM/30GB SSD, ~$6/mo),
+  deployed via RepoCloud's AI deploy agent (not manually set up -
+  given custom instructions describing the build/start/health-check
+  contract, see chat history for the exact instructions used).
+- Both `apps/core` and `apps/telegram-adapter` run as systemd services
+  (`endra-core`, `endra-telegram`) under a dedicated non-root `endra`
+  user, auto-restart on failure, enabled on boot.
+- `/opt/endra/.env` on the server holds the real secrets (separate
+  from this repo's local `.env` - they had to be pasted into the
+  RepoCloud deploy agent's chat once, manually, by Ender).
+- Firewall: only SSH (22) open, deny-all inbound otherwise. Core's API
+  is NOT publicly reachable - by design, only the Telegram adapter
+  calls it, over localhost. This is a deliberate, good security
+  default - don't "fix" this by opening a public port later without a
+  real reason.
+- Auto-updates: a nightly cron (02:17 UTC) pulls the latest `main` from
+  GitHub, rebuilds, and restarts both services. Pushing to `main` on
+  GitHub (`github.com/endrylmzz/endra`, now **public** - see below) is
+  effectively continuous deployment; there is no staging environment
+  or manual approval step before it reaches production.
+- The repo was made **public** (Ender's choice) so RepoCloud's deploy
+  form (which only accepts public repos on the simple path) could
+  clone it directly. Verified before doing this: no secrets exist
+  anywhere in git history (checked with `git log --all -p` grepping
+  for known key/token fragments) - only a Telegram user id appears,
+  which isn't a credential.
+- Fixed during live use: Telegram was rendering literal `**asterisks**`
+  instead of bold text - `TelegramClient.sendMessage` now sends
+  `parse_mode: "Markdown"`, with a plain-text retry if Telegram's
+  parser rejects the LLM's output (its Markdown parser is strict about
+  balanced entities).
+- The local dev machine's copies of `apps/core`/`apps/telegram-adapter`
+  were stopped (they were briefly running in parallel with the VPS
+  and caused a real Telegram long-polling conflict - "Conflict:
+  terminated by other getUpdates request" - fixed by killing the local
+  processes). Going forward, only start them locally for development/
+  testing, not for Ender's actual daily use.
 
-## Real open question: deployment / 24-7
+## What's next - same real options as before, now with a live system
 
-Nothing is deployed anywhere yet. Ender needs to check his RepoCloud
-dashboard for whether it can host a custom Node service (not just
-marketplace apps like n8n) - see ADR-005's context section. Once that's
-known:
-
-- **If RepoCloud can host custom apps:** deploy `apps/core` (and either
-  keep `apps/telegram-adapter` running there too, or migrate to a real
-  n8n workflow if n8n is also set up there) - this fulfills the
-  original architecture (ADR-001) for real.
-- **If not:** `apps/core` needs a different host (Railway, Fly.io,
-  Render, etc.) - a decision to make when it comes up, not before.
-
-Don't start on deployment work speculatively - wait for Ender to check
-RepoCloud and report back what's actually possible there.
-
-## Other real options (pick based on priority, same as before)
-
-- **Phase 2 (Memory)**: `MEMORY-004` (preferences), `MEMORY-005+`
-  (semantic memory/embeddings/retrieval/promotion).
+- **Phase 2 (Memory)**: `MEMORY-004` (preferences) onward.
 - **Phase 3 (Tools)**: `EndraTool` contract, registry, router,
-  permissions, confirmation system - needed before ENDRA can do
-  anything beyond talk.
+  permissions, confirmation system.
+- **Something new**: now that Ender is actually using ENDRA daily,
+  real usage may surface its own priorities (e.g. voice, since OpenAI
+  is already the provider; or a specific tool he wants first).
 
 Important:
 
-- Whichever direction, keep verifying with real end-to-end smoke tests
-  before marking things done - this has caught two real problems this
-  session already (the Fastify `removeAdditional` default, and the
-  revoked Telegram token).
-- If a new Telegram feature needs inline buttons (e.g. confirmation
-  prompts for risky tool actions, CLAUDE.md section 20), that's not
-  built yet - the adapter only handles plain text messages/replies
-  right now.
+- Any future code change needs `npm test`/lint/format clean AND a real
+  push to `main` to actually reach production now - there's no
+  separate deploy step to forget, but also no safety net (no staging,
+  no approval gate). Be more careful about what lands on `main`, since
+  it auto-deploys nightly (and can be forced sooner via the RepoCloud
+  agent's "Rebuild/Update" button).
+- Don't touch the firewall/public-port setup without a concrete reason
+  - Core being unreachable from the internet is intentional.
