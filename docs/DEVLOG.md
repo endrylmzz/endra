@@ -4,6 +4,51 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (2)
+
+Completed:
+
+- MEMORY-001 Initial Supabase schema design (minimal slice)
+- MEMORY-002 Supabase migrations (mechanism + first migration)
+
+Changed:
+
+- Installed the Supabase CLI as a root devDependency (`npm i -D
+supabase`) instead of a system package manager (Scoop wasn't
+  installed and installing it felt like more than this needed).
+- Logged in via a Supabase personal access token (Ender generated one
+  from dashboard/account/tokens, since `supabase login`'s browser flow
+  doesn't work in this non-TTY environment) and linked the CLI to the
+  real remote project (`gokogcspheruupuiipjl`) using the project's DB
+  password. Neither the access token nor the DB password is stored in
+  the repo - the CLI keeps its own local config outside the project.
+- Added `supabase/migrations/20260914180509_init_schema.sql`: `users`,
+  `conversations`, `messages` tables, RLS enabled with no policies
+  (secret key bypasses RLS; anon/publishable key gets nothing). Applied
+  to the real database with `supabase db push`, confirmed with
+  `supabase migration list` (local/remote timestamps match) and a
+  direct REST query.
+- Added `apps/core/src/db/supabase-client.ts` (`getSupabaseClient()`,
+  lazy singleton) + 2 tests. Verified with a real query against the
+  live database (empty `users` table, no error) - second real external
+  API call made in this project, after the OpenAI one.
+- Did NOT design the full Phase 2 schema (memories, embeddings,
+  projects, tasks, tool_runs, agent_runs, approvals, scheduled_jobs) -
+  deliberately incremental, per `docs/NEXT_ACTION.md`.
+
+Problems:
+
+- `supabase login`'s interactive browser flow fails in this sandboxed
+  shell (`LegacyLoginMissingTokenError`, non-TTY). Worked around with
+  `supabase login --token <personal-access-token>` instead.
+
+Next:
+
+- CORE-003/004 (user identity, conversation model) or MEMORY-003
+  (conversation/message persistence layer) - see `docs/NEXT_ACTION.md`.
+
+---
+
 ## 2026-09-14
 
 Completed:

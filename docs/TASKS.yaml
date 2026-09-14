@@ -8,7 +8,7 @@
 
 project: endra
 
-current_phase: 1
+current_phase: 2
 
 tasks:
   # ---------------------------------------------------------------------
@@ -202,15 +202,14 @@ tasks:
   - id: MEMORY-001
     title: Design Supabase schema (users, conversations, messages, preferences, memories, embeddings, projects, tasks, tool_runs, agent_runs, approvals, scheduled_jobs)
     phase: 2
-    status: pending
+    status: done
     priority: critical
-    depends_on:
-      - CORE-004
+    depends_on: []
 
   - id: MEMORY-002
     title: Implement Supabase migrations
     phase: 2
-    status: pending
+    status: done
     priority: critical
     depends_on:
       - MEMORY-001
