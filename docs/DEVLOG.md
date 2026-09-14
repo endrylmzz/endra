@@ -4,6 +4,50 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (3)
+
+Completed:
+
+- CORE-003 User identity handling
+- CORE-004 Conversation context model
+- MEMORY-003 Conversation and message persistence layer
+- CORE-009 Agent run logging
+
+Changed:
+
+- Added `supabase/migrations/20260914181528_add_identity_columns.sql`
+  (`users.external_id`, unique constraints) and
+  `.../20260914181804_add_agent_runs.sql` (`agent_runs` table).
+- Added `apps/core/src/identity/resolve-identity.ts`
+  (`resolveIdentity()`) - find-or-create a user + conversation row
+  from a request's channel/external ids. Deliberately does not try to
+  link one person across multiple channels into one identity yet -
+  not a real need until a second channel (Telegram) exists.
+- Added `apps/core/src/memory/messages.ts` (`saveMessage`,
+  `getRecentMessages`) - the working-memory layer, separate from
+  promoted long-term memory (MEMORY-005+).
+- Added `apps/core/src/observability/agent-run-log.ts`
+  (`logAgentRun()`) - logs provider/model/timing/tokens/status.
+  Swallows its own failures (logs to `console.error`, never throws) so
+  a logging outage can't take down the actual user-facing response.
+- All four pieces tested with fake/injected Supabase clients (test
+  suite: 28 tests total now), then separately verified end-to-end
+  against the real remote database with throwaway smoke-test rows
+  (created, checked, deleted).
+
+Problems:
+
+- None.
+
+Next:
+
+- Wire identity + persistence + `OpenAIProvider` + persona + agent run
+  logging together in `message-service.ts` so `/api/v1/message`
+  returns a real reply instead of the stub - see `docs/NEXT_ACTION.md`,
+  already in progress.
+
+---
+
 ## 2026-09-14 (2)
 
 Completed:

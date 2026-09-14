@@ -4,31 +4,28 @@ Current Phase:
 Phase 2 — Persistent Memory
 
 Overall Progress:
-28% (see `npm run status`, computed from `docs/TASKS.yaml`)
+33% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-MEMORY-001/002 — initial Supabase schema (users, conversations,
-messages, RLS enabled with no policies) designed and migrated to the
-real remote project via the Supabase CLI (linked with a personal
-access token + DB password). Verified end-to-end through
-`apps/core/src/db/supabase-client.ts`. Memory-specific tables (semantic
-memory, embeddings, projects, tasks, etc.) will be added incrementally
-as those features (MEMORY-004+) are built, not all at once.
-
-Note: Phase 1 (ENDRA Core) isn't fully finished — CORE-003/004/008/009
-are still pending — but Ender asked to start Phase 2 in parallel once
-Supabase credentials were ready. Both phases are open right now.
+CORE-003/004 (user identity + conversation context, backed by
+Supabase find-or-create), MEMORY-003 (message persistence - save +
+retrieve history), and CORE-009 (agent run logging, `agent_runs`
+table). All verified against the real Supabase database, not just unit
+tests.
 
 Currently Working:
-(none)
+Wiring all of this together so `/api/v1/message` returns a real
+OpenAI-backed reply instead of the static stub - the last step before
+Phase 1 (Core) is functionally complete end-to-end.
 
 Blocked:
 None
 
 Next:
-CORE-003 User identity handling / CORE-004 Conversation context model
-(would let MEMORY-003 - persistence layer - build on something), or
-continue deeper into Phase 2. See `docs/NEXT_ACTION.md`.
+Finish the message-service.ts wiring (identity → history → LLM →
+persist → log → respond), then CORE-008 (should fall out of that work
+almost for free), then deeper into Phase 2 (MEMORY-004+) or Phase 3
+(tools).
 
 Last Updated:
 2026-09-14

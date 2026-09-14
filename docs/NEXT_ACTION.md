@@ -1,74 +1,63 @@
 # NEXT ACTION
 
 Continue task:
-CORE-003 (user identity) or CORE-004 (conversation context model) —
-both unblocked, and now there's a real `users`/`conversations` schema
-in Supabase for them to build on. `MEMORY-003` (conversation/message
-persistence layer) is the natural next Phase 2 step after either.
+Wire `message-service.ts` up for real - this is the immediate next
+step, already in progress in this same session.
 
 Goal:
-Phase 1's LLM/persona pieces are done (OpenAI provider, persona
-config). Phase 2 now has a working Supabase connection and initial
-schema. Nothing in `apps/core` uses the database yet, and
-`/api/v1/message` still returns the static stub.
+Every piece Core needs to give a real ENDRA reply now exists in
+isolation and is tested (including against the real Supabase
+database): identity resolution, message persistence, an LLM provider,
+a persona, and agent run logging. None of them are connected together
+yet - `POST /api/v1/message` still returns the static stub from
+`services/message-service.ts`.
 
-Current state - Phase 1:
+Current state:
 
-- `apps/core/src/llm/openai-provider.ts` — active default `LLMProvider`.
-  `apps/core/src/llm/anthropic-provider.ts` still exists, unused, not
-  deleted.
-- `config/persona/endra.md` + `apps/core/src/persona/load-persona.ts` —
-  done, approved.
-- Not done yet: CORE-003, CORE-004, CORE-008 (standard response format
-  - arguably already satisfied by the envelope from CORE-001, revisit
-    if it still looks incomplete once wiring happens), CORE-009 (agent
-    run logging).
+- `apps/core/src/identity/resolve-identity.ts` — `resolveIdentity({channel, externalUserId, externalConversationId})`
+  → `{userId, conversationId}` (internal Supabase ids), find-or-create.
+- `apps/core/src/memory/messages.ts` — `saveMessage(conversationId, {role, content})`,
+  `getRecentMessages(conversationId, limit)`.
+- `apps/core/src/llm/openai-provider.ts` — `OpenAIProvider`, active default.
+- `apps/core/src/persona/load-persona.ts` — `loadPersona()`.
+- `apps/core/src/observability/agent-run-log.ts` — `logAgentRun({...})`,
+  never throws (logs to `console.error` and continues on failure - a
+  logging outage must not break the actual response).
+- All backed by real, applied Supabase migrations (`users`,
+  `conversations`, `messages`, `agent_runs`).
 
-Current state - Phase 2 (Supabase):
+The wiring itself (`services/message-service.ts`, replacing the
+current stub `handleMessage`):
 
-- Remote project `gokogcspheruupuiipjl` (org "ENDRA AI", `main`
-  branch), created by Ender on 2026-09-14.
-- Supabase CLI installed as a root devDependency (`npm i -D supabase`,
-  not a system-wide install) - run via `npx supabase <command>`.
-- CLI is logged in (personal access token, named "endra-cli") and
-  linked to the remote project (`supabase/.temp/project-ref`, gitignored).
-  The DB password was used once for `supabase link -p ...` and is not
-  stored anywhere in the repo.
-- `supabase/migrations/20260914180509_init_schema.sql` — first
-  migration, applied to the remote database (`supabase db push`,
-  verified with `supabase migration list`): `users`, `conversations`,
-  `messages` tables, RLS enabled on all three with **no policies**
-  (meaning the anon/publishable key gets zero access; only the secret
-  key, which Core uses, bypasses RLS).
-- `apps/core/src/db/supabase-client.ts` — `getSupabaseClient()`, a
-  lazy singleton reading `SUPABASE_URL` / `SUPABASE_SECRET_KEY` from
-  env. Verified with a real query against the live database (empty
-  `users` table, no error).
-- `.env` has real `SUPABASE_URL` and `SUPABASE_SECRET_KEY` values.
+1. `resolveIdentity({channel, externalUserId: userId, externalConversationId: conversationId})`
+2. `getRecentMessages(resolvedConversationId)` for history
+3. `saveMessage(resolvedConversationId, {role: "user", content: message})`
+4. Call `OpenAIProvider.generate({systemPrompt: loadPersona(), messages: [...history, {role: "user", content: message}]})`,
+   timing it (for `durationMs`)
+5. `saveMessage(resolvedConversationId, {role: "assistant", content: reply.content})`
+6. `logAgentRun({conversationId, userId, provider: "openai", model, status, durationMs, inputTokens, outputTokens, errorMessage?})` -
+   on both success and failure (wrap in try/catch, log status: "error" and rethrow so the route's existing error handler still returns a proper error response)
+7. Return `{message: reply.content, conversationId: <the original external one, not the internal Supabase id>}` -
+   keep the response contract's `conversationId` meaning "the id you
+   gave me", not leaking the internal Supabase id.
 
-Next steps (pick based on what's more valuable - both are reasonable):
-
-1. **CORE-003/004 first, then MEMORY-003**: give the LLM call something
-   real to work with (an actual user + conversation row) before wiring
-   `message-service.ts` up for real. Probably the more coherent order.
-2. **Keep building Phase 2 schema/persistence (MEMORY-003+)** now while
-   Supabase context is fresh, and circle back to CORE-003/004 after.
-
-Either way, still true from before:
-Don't wire a real LLM call into `/api/v1/message` without at least
-basic agent run logging (CORE-009) first - CLAUDE.md section 25.
+Once this works, CORE-008 (standard response format) should already be
+satisfied by the existing `{success, data}` / `{success, error}`
+envelope from CORE-001 - confirm that's still true rather than
+re-mark it pending.
 
 Important:
 
-- Don't design the rest of the Phase 2 schema (semantic memory,
-  embeddings, projects, tasks, tool_runs, agent_runs, approvals,
-  scheduled_jobs) all at once - add tables via new migrations only when
-  the feature that needs them (MEMORY-004 onward) is actually being
-  built.
-- The Supabase CLI's personal access token is stored in the CLI's own
-  local config (outside this repo), not in `.env` - if the token
-  expires (Ender set it to expire 2026 or 2027-06-18, needs
-  confirming which year) a new one will need to be generated the same
-  way.
-- OpenAI is also planned for voice (Phase 7) and image generation
-  tooling later - not started, no task ID yet.
+- Test this with the injected/fake clients already established for
+  each piece (`OpenAIProvider`, Supabase client) - don't make the unit
+  test suite hit real APIs. Do one real end-to-end manual smoke test
+  (like the ones already done for OpenAI, Supabase, identity,
+  messages, and agent_runs individually) to confirm the whole chain
+  works together before calling this done.
+- `.env` still isn't auto-loaded by any npm script (`node --env-file=.env`
+  has only been used manually for smoke tests) - decide whether to
+  wire that into `start`/`dev` now that Core actually needs env vars
+  to function, or leave it for whenever real deployment is set up.
+- Not started yet, no task ID: OpenAI for voice (Phase 7) / image
+  generation tooling, wiring `.env` loading into npm scripts, Telegram
+  (Phase 4, token already sits in `.env` unused).

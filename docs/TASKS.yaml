@@ -127,7 +127,7 @@ tasks:
   - id: CORE-003
     title: User identity handling
     phase: 1
-    status: pending
+    status: done
     priority: high
     depends_on:
       - CORE-002
@@ -135,7 +135,7 @@ tasks:
   - id: CORE-004
     title: Conversation context model
     phase: 1
-    status: pending
+    status: done
     priority: high
     depends_on:
       - CORE-002
@@ -175,7 +175,7 @@ tasks:
   - id: CORE-009
     title: Agent run logging
     phase: 1
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - CORE-006
@@ -217,7 +217,7 @@ tasks:
   - id: MEMORY-003
     title: Conversation and message persistence layer
     phase: 2
-    status: pending
+    status: done
     priority: high
     depends_on:
       - MEMORY-002
