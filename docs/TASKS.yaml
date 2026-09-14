@@ -321,6 +321,14 @@ tasks:
     depends_on:
       - TOOLARCH-005
 
+  - id: TOOLARCH-008
+    title: Wire tool-calling into the live message pipeline (message-service.ts)
+    phase: 3
+    status: done
+    priority: high
+    depends_on:
+      - TOOLARCH-007
+
   # ---------------------------------------------------------------------
   # Phase 4 - Telegram
   # ---------------------------------------------------------------------

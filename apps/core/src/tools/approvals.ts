@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 
 const APPROVAL_TTL_MS = 5 * 60 * 1000;
+const APPROVAL_COLUMNS = "id, tool_name, arguments, status, expires_at";
 
 export interface Approval {
   id: string;
@@ -15,6 +16,22 @@ export interface Approval {
   arguments: unknown;
   status: "pending" | "approved" | "rejected" | "expired";
   expiresAt: string;
+}
+
+function toApproval(row: {
+  id: unknown;
+  tool_name: unknown;
+  arguments: unknown;
+  status: unknown;
+  expires_at: unknown;
+}): Approval {
+  return {
+    id: row.id as string,
+    toolName: row.tool_name as string,
+    arguments: row.arguments,
+    status: row.status as Approval["status"],
+    expiresAt: row.expires_at as string,
+  };
 }
 
 export async function createApproval(
@@ -30,17 +47,10 @@ export async function createApproval(
       arguments: params.arguments,
       expires_at: new Date(Date.now() + APPROVAL_TTL_MS).toISOString(),
     })
-    .select("id, tool_name, arguments, status, expires_at")
+    .select(APPROVAL_COLUMNS)
     .single();
   if (error) throw error;
-
-  return {
-    id: data.id as string,
-    toolName: data.tool_name as string,
-    arguments: data.arguments,
-    status: data.status as Approval["status"],
-    expiresAt: data.expires_at as string,
-  };
+  return toApproval(data);
 }
 
 export async function getApproval(
@@ -49,19 +59,29 @@ export async function getApproval(
 ): Promise<Approval | undefined> {
   const { data, error } = await client
     .from("approvals")
-    .select("id, tool_name, arguments, status, expires_at")
+    .select(APPROVAL_COLUMNS)
     .eq("id", approvalId)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return undefined;
+  return data ? toApproval(data) : undefined;
+}
 
-  return {
-    id: data.id as string,
-    toolName: data.tool_name as string,
-    arguments: data.arguments,
-    status: data.status as Approval["status"],
-    expiresAt: data.expires_at as string,
-  };
+/** The most recent still-pending, unexpired approval in a conversation, if any. */
+export async function findPendingApproval(
+  conversationId: string,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<Approval | undefined> {
+  const { data, error } = await client
+    .from("approvals")
+    .select(APPROVAL_COLUMNS)
+    .eq("conversation_id", conversationId)
+    .eq("status", "pending")
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toApproval(data) : undefined;
 }
 
 export async function resolveApprovalStatus(

@@ -1,38 +1,38 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 3 (Tool Architecture) done as a standalone, proven system - not
-yet wired into live chat. Phases 1, 4 fully done; Phase 2 substantially
-deep.
+Phase 3 (Tools) fully done and **live in production** (pending a
+deploy trigger). Phases 1, 4 done; Phase 2 substantially deep.
 
 Overall Progress:
-60% (see `npm run status`, computed from `docs/TASKS.yaml`)
+61% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Tool architecture (TOOLARCH-001 through 007), built around MCP.**
-`EndraTool` contract, `ToolRegistry`, `ToolRouter` (risk-based dispatch,
-confirmation flow with a real `approvals` table, audit logging via
-`tool_runs`), three native tools (`get_current_time`, `calculator`,
-`notes`), and a real MCP client wrapper. Verified live against Supabase
-(read tool execute, write tool confirm/reject/double-confirm-refused
-flow, audit trail) AND against a real MCP server
-(`@modelcontextprotocol/server-everything`, spawned via stdio) - listed
-its 13 tools and executed one (`get-sum`) for real through the router.
+**ENDRA can now actually do things during a live conversation, not
+just talk.** Tool-calling is wired into `message-service.ts`:
+`get_current_time` and `calculator` run immediately; `notes` (write
+risk) asks for confirmation first, in the LLM's own natural Turkish
+phrasing (not a canned string) - and only executes if the user then
+says yes, using the exact arguments captured at the time it was first
+requested. Verified live end-to-end (real OpenAI + Supabase): asked
+for the time, did math, asked to save a note (got asked to confirm),
+confirmed it (note was saved), asked again and rejected it (note was
+NOT saved). Hit and fixed one real API issue along the way: gpt-5.6
+rejects function tools together with its default `reasoning_effort` on
+`/v1/chat/completions` - fixed by setting `reasoning_effort: "none"`
+when tools are present.
 
 Currently Working:
 (none)
 
 Blocked:
-None. **Deliberately not done yet**: wiring tool-calling into the live
-`message-service.ts` LLM loop (i.e. OpenAI actually deciding to call a
-tool mid-conversation, in production). This needs
-`OpenAIProvider.generate()` extended to support function-calling first,
-and changes live chat behavior - ask before turning it on.
+None. **This is a real production-behavior change** - not deployed
+yet. Push a rebuild via the RepoCloud agent ("Resume Chat" -> ask it to
+pull/rebuild/restart) when ready to go live with this.
 
 Next:
-Ender's choice: wire tools into live chat, keep building out Phase 2
-(MEMORY-008 project memory - probably trivial now), or something else.
-See `docs/NEXT_ACTION.md`.
+Ender's choice: something new now that ENDRA can act, or continue
+deepening Phase 2/5. See `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-14

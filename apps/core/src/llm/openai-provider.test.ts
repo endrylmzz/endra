@@ -56,4 +56,93 @@ describe("OpenAIProvider", () => {
 
     expect(result.content).toBe("");
   });
+
+  it("sends tool definitions in OpenAI's function-calling format", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    await provider.generate({
+      messages: [{ role: "user", content: "hi" }],
+      tools: [{ name: "get_time", description: "gets the time", inputSchema: { type: "object" } }],
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "get_time",
+              description: "gets the time",
+              parameters: { type: "object" },
+            },
+          },
+        ],
+      }),
+    );
+  });
+
+  it("parses tool calls out of the response", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "get_time", arguments: "{}" } },
+            ],
+          },
+        },
+      ],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    const result = await provider.generate({
+      messages: [{ role: "user", content: "what time is it" }],
+    });
+
+    expect(result.toolCalls).toEqual([{ id: "call_1", name: "get_time", arguments: {} }]);
+  });
+
+  it("sends assistant tool-call history and tool-result messages in OpenAI's shape", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "done" } }],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    await provider.generate({
+      messages: [
+        { role: "user", content: "what time is it" },
+        {
+          role: "assistant",
+          content: "",
+          toolCalls: [{ id: "call_1", name: "get_time", arguments: {} }],
+        },
+        { role: "tool", toolCallId: "call_1", content: '"2026-01-01T00:00:00Z"' },
+      ],
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              { id: "call_1", type: "function", function: { name: "get_time", arguments: "{}" } },
+            ],
+          },
+          { role: "tool", tool_call_id: "call_1", content: '"2026-01-01T00:00:00Z"' },
+        ]),
+      }),
+    );
+  });
 });

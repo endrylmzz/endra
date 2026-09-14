@@ -25,11 +25,17 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async generate(request: LLMGenerateRequest): Promise<LLMGenerateResponse> {
+    // Dormant provider (see ADR/DEVLOG - OpenAI is the active default).
+    // Tool-calling was never implemented here: request.tools is ignored,
+    // and any "tool" role message (Anthropic represents tool results
+    // differently) is dropped rather than sent incorrectly.
     const response = await this.client.messages.create({
       model: this.model,
       max_tokens: DEFAULT_MAX_TOKENS,
       system: request.systemPrompt,
-      messages: request.messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: request.messages
+        .filter((m): m is typeof m & { role: "user" | "assistant" } => m.role !== "tool")
+        .map((m) => ({ role: m.role, content: m.content })),
     });
 
     const textBlock = response.content.find((block) => block.type === "text");

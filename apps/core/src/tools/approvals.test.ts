@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createApproval, getApproval, resolveApprovalStatus } from "./approvals.js";
+import {
+  createApproval,
+  findPendingApproval,
+  getApproval,
+  resolveApprovalStatus,
+} from "./approvals.js";
 
 function fakeRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -60,6 +65,58 @@ describe("getApproval", () => {
     } as unknown as SupabaseClient;
 
     expect(await getApproval("missing", client)).toBeUndefined();
+  });
+});
+
+describe("findPendingApproval", () => {
+  it("returns the pending approval for a conversation when one exists", async () => {
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: function () {
+            return this;
+          },
+          gt: function () {
+            return this;
+          },
+          order: function () {
+            return this;
+          },
+          limit: function () {
+            return this;
+          },
+          maybeSingle: async () => ({ data: fakeRow(), error: null }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const approval = await findPendingApproval("conv-1", client);
+
+    expect(approval?.id).toBe("approval-1");
+  });
+
+  it("returns undefined when there's no pending approval", async () => {
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: function () {
+            return this;
+          },
+          gt: function () {
+            return this;
+          },
+          order: function () {
+            return this;
+          },
+          limit: function () {
+            return this;
+          },
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    expect(await findPendingApproval("conv-1", client)).toBeUndefined();
   });
 });
 

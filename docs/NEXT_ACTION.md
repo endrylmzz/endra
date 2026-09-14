@@ -1,84 +1,86 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. Tool architecture is built and proven standalone.
-The next real decision is whether to wire it into live chat now.
+None in progress. Tool-calling is live-wired and tested locally against
+real OpenAI/Supabase - **not yet deployed**. Trigger a RepoCloud rebuild
+when ready, then verify once via Telegram before considering this
+fully done in production.
 
 Goal:
-Decide: flip on tool-calling in production (`message-service.ts`), or
-keep building other things first.
+Get the tool-calling wiring actually running on the VPS, verify once
+via real Telegram messages, then decide what's next.
 
-## Current state - Phase 3 (Tools), built and proven, not yet live
+## Current state - TOOLARCH-008 (tool-calling wired into live chat)
 
-- `packages/agent-contracts/src/tool.ts` - `EndraTool`,
-  `ToolExecutionContext` (had to add this - `execute(input)` alone
-  can't know which user is calling, e.g. for the `notes` tool;
-  CLAUDE.md's original sketch didn't have this, added it once actually
-  implementing revealed the gap), `ToolRiskLevel`, `ToolResult`.
-- `apps/core/src/tools/registry.ts` - `ToolRegistry` (register/get/list).
-- `apps/core/src/tools/router.ts` - `ToolRouter.route()` (dispatches;
-  confirmation-required tools create a pending approval instead of
-  executing) and `.confirm()` (always executes with the arguments
-  stored at approval time - never anything supplied later).
-- `apps/core/src/tools/approvals.ts` + new `approvals` table -
-  `pending`/`approved`/`rejected`/`expired`, 5-minute TTL.
-- `apps/core/src/tools/tool-run-log.ts` + new `tool_runs` table - same
-  never-throws-on-its-own-failure pattern as `agent_runs`.
-- `apps/core/src/tools/builtin/`: `get_current_time` (read),
-  `calculator` (read - has its own safe recursive-descent arithmetic
-  parser, no `eval()` on LLM-influenced input), `notes` (write,
-  `requiresConfirmation: true`, new `notes` table - the deliberate
-  first tool to exercise the full confirmation flow).
-- `apps/core/src/tools/mcp-client.ts` - `connectMcpServer()` +
-  `loadMcpTools()`, wraps any MCP server's tools as `EndraTool`s.
-  **Important caveat documented in the file**: MCP has no risk/
-  confirmation concept, so wrapped tools default to `read`/no-
-  confirmation - safe only for a reviewed server. A new real MCP
-  server (Phase 5+) needs explicit `overrides` for anything that
-  mutates state or costs money - never trust the default there.
-- Verified live twice: (1) full router flow against real Supabase -
-  read tool executes immediately, write tool creates a pending
-  approval, confirming executes with the stored arguments, confirming
-  the same approval twice is correctly refused, full audit trail in
-  `tool_runs`; (2) real MCP server connection
-  (`@modelcontextprotocol/server-everything` via stdio/npx) - listed
-  its 13 real tools, called `get-sum` through the router, got the
-  correct real result.
-- 99 tests total now, all passing.
+- `packages/agent-contracts/src/llm.ts` - `LLMMessage.role` now includes
+  `"tool"`, plus `toolCallId`/`toolCalls` fields; `LLMGenerateRequest`
+  takes optional `tools`; `LLMGenerateResponse` returns optional
+  `toolCalls`. `AnthropicProvider` (dormant) updated just enough to keep
+  compiling - it drops `"tool"` role messages rather than mis-sending
+  them, since it was never built to support tool-calling.
+- `apps/core/src/llm/openai-provider.ts` - maps to/from OpenAI's
+  function-calling shape. **Real bug found and fixed**: `gpt-5.6`
+  rejects `tools` together with its default `reasoning_effort` on
+  `/v1/chat/completions` - now sends `reasoning_effort: "none"`
+  whenever tools are present.
+- `apps/core/src/tools/default-registry.ts` - the actual registry used
+  in production: `get_current_time`, `calculator`, `notes`. Nothing
+  from MCP is registered here yet - the MCP proof server
+  (`@modelcontextprotocol/server-everything`) was only ever a
+  standalone test, not wired into live chat.
+- `apps/core/src/tools/confirmation-intent.ts` - simple keyword-based
+  yes/no detection for responding to a pending approval in natural
+  chat (no extra LLM call just to classify intent; "unclear" is the
+  safe default - never silently approves).
+- `apps/core/src/tools/approvals.ts` - added `findPendingApproval()`
+  (most recent pending, unexpired approval for a conversation).
+- `apps/core/src/services/message-service.ts` - the actual pipeline
+  now: (1) if a pending approval exists for this conversation, treat
+  the message as approve/reject/unrelated; (2) otherwise, call the LLM
+  with tools, loop on tool calls (max 4 iterations) until a final
+  answer or a tool needs confirmation. **Confirmation prompts and
+  wrap-up replies are phrased by the LLM itself** (one extra text-only
+  `generate()` call, tools omitted) rather than canned strings - this
+  keeps ENDRA's voice consistent, and does NOT weaken the safety
+  guarantee: execution still only ever happens via
+  `ToolRouter.confirm()` with the exact arguments captured at approval
+  time, regardless of how anything is phrased.
+- Verified live, end to end, twice (before and after the UX polish
+  pass): time question -> real tool result; math question -> real
+  tool result; note request -> natural confirmation question; "evet" ->
+  note actually saved in Supabase, natural confirmation reply; second
+  note request + "hayır" -> note correctly NOT saved, natural
+  cancellation reply.
+- 116 tests total, all passing (7 new/changed in `message-service.test.ts`,
+  plus `confirmation-intent.test.ts`, `openai-provider` tool-calling
+  tests, `approvals.findPendingApproval` tests).
 
-## The actual next decision
+## Not deployed yet
 
-**Wiring tools into live chat** means: extend `OpenAIProvider` (or add
-a new method) to pass tool definitions to OpenAI's function-calling API,
-have `message-service.ts` loop (LLM responds -> maybe wants a tool ->
-route it -> feed the result back to the LLM -> maybe another tool ->
-... -> final text reply), and register `getCurrentTimeTool`,
-`calculatorTool`, `createNotesTool()` (and decide whether to also
-connect a real MCP server, or leave that for Phase 5) into a registry
-at startup.
+This whole change is sitting on `main`, tested locally, not yet on the
+VPS. To go live: RepoCloud dashboard -> `endra-core` project -> "Resume
+Chat" -> ask the agent to pull latest from `main`, rebuild, and restart
+both services. Then send a real Telegram message that should trigger a
+tool (e.g. ask what time it is, or ask it to save a note) to confirm it
+works in production, not just locally.
 
-This is a genuine production-behavior change (every message could now
-trigger 1+ tool-call round-trips, more OpenAI cost/latency, and -
-crucially - the `notes` tool means ENDRA could actually write to the
-database as a result of a live conversation for the first time). Don't
-flip this on without confirming with Ender first, the same way the
-first real OpenAI/Supabase calls were confirmed earlier this session.
-
-## Other open items (not blocking, just tracked)
+## Other open items (not blocking)
 
 - `MEMORY-008` (project memory) - likely just documenting that
-  `type: "project"` in the existing `memories` table already covers
-  this; confirm rather than build something new.
-- Deployment/24-7 question from earlier (RepoCloud vs elsewhere) -
-  currently resolved via the RepoCloud VPS (ADR-006); nothing more to
-  do unless it stops being sufficient.
+  `type: "project"` in `memories` already covers this.
 - Real external tools (weather, web search, calendar, Gmail - Phase 5)
-  will need their own API keys/OAuth - ask for the specific credential
-  only when building that specific tool.
+  each need their own API key/OAuth - ask when building that specific
+  one, and remember to pass explicit risk-level `overrides` for any
+  MCP-sourced tool that mutates state (see `mcp-client.ts`'s warning -
+  MCP has no risk metadata of its own).
+- Multiple tool calls in one turn where one requires confirmation:
+  currently the other calls' results are computed but not surfaced to
+  the user in that turn (a deliberate v1 simplification - rare in
+  practice with today's 3 tools).
 
 Important:
-Every piece built this session (LLM providers, memory, tools) followed
-the same shape: build standalone -> unit test with injected fakes ->
-verify with a real end-to-end call -> only then wire into production,
-asking first when the wiring changes live behavior meaningfully. Keep
-doing that.
+Keep the pattern: build standalone -> unit test with fakes -> verify
+with a real end-to-end call -> only then treat as done. This session
+caught two real bugs this way already just in this task (the
+`reasoning_effort`/tools conflict, and the robotic English-leaking
+confirmation text before the UX pass).

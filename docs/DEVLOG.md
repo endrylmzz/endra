@@ -4,6 +4,80 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (9)
+
+Completed:
+
+- TOOLARCH-008 Wire tool-calling into the live message pipeline
+
+Changed:
+
+- Extended `LLMProvider`'s contract (`LLMMessage.role` now includes
+  `"tool"`, `toolCallId`/`toolCalls` fields; `tools` on the request,
+  `toolCalls` on the response - all optional, so `AnthropicProvider`
+  (dormant, unused) needed only a small fix to keep compiling, not a
+  real tool-calling implementation).
+- `OpenAIProvider` now maps to/from OpenAI's function-calling shape.
+  **Found and fixed a real API bug**: `gpt-5.6` returns 400 ("Function
+  tools with reasoning_effort are not supported... set reasoning_effort
+  to 'none'") when `tools` are sent without also setting
+  `reasoning_effort: "none"` - only discovered via the live smoke test,
+  not caught by any mocked unit test (the mocks don't know OpenAI's
+  real validation rules). Fixed by always setting it when tools are
+  present.
+- `apps/core/src/tools/default-registry.ts` - the production tool
+  registry/router (`get_current_time`, `calculator`, `notes`).
+- `apps/core/src/tools/confirmation-intent.ts` - keyword-based yes/no
+  detection for responding to a pending approval mid-conversation, no
+  extra LLM call needed for something this simple; "unclear" is the
+  fail-safe default.
+- `approvals.ts` gained `findPendingApproval()` (most recent pending,
+  unexpired approval per conversation) - also refactored the repeated
+  row-to-camelCase mapping into one `toApproval()` helper while there.
+- Rewrote `message-service.ts`'s `handleMessage()`: checks for a
+  pending approval first (approve/reject/unrelated via
+  `detectConfirmationIntent`); otherwise runs the LLM with tools in a
+  loop (max 4 iterations) until a final answer or a
+  confirmation-required tool call.
+- **UX pass, after the first live test showed robotic output**:
+  confirmation questions and "done"/"cancelled" replies are now phrased
+  by the LLM itself (one extra text-only `generate()` call, tools
+  intentionally omitted so it can't try another tool call instead of
+  answering) instead of canned template strings. The first version
+  literally said `"Saves a short note for later.
+({"content":"..."})."` - an English tool description with a raw JSON
+  blob glued into a Turkish sentence, which doesn't fit ENDRA's persona
+  at all. The actual safety mechanism (`ToolRouter.confirm()` always
+  executing with the arguments stored at approval time) was never
+  touched - only how things are phrased.
+- Verified live end-to-end, twice (once before, once after the UX
+  pass): time question -> real result; math question -> real result;
+  note request -> confirmation question -> "evet" -> note actually in
+  Supabase, natural reply; second note request -> "hayır" -> note
+  correctly NOT saved, natural reply.
+- 116 tests total now (up from 99): `message-service.test.ts` rewritten
+  with dedicated tool-calling and pending-confirmation-response
+  sections, plus new tests for `confirmation-intent.ts`,
+  `approvals.findPendingApproval`, and `OpenAIProvider`'s
+  tool-definition/tool-call mapping.
+
+Problems:
+
+- The `gpt-5.6` + `reasoning_effort` + `tools` conflict above - real
+  API behavior no mock could have caught; the live smoke test is what
+  found it.
+- The robotic first-draft confirmation UX above - not a bug exactly,
+  but a real quality issue caught the same way (by actually looking at
+  what came back from a live call, not just checking `success: true`).
+
+Next:
+
+- **Not deployed to production yet.** Trigger a RepoCloud rebuild, then
+  verify once via real Telegram messages. After that, Ender's choice on
+  what's next - see `docs/NEXT_ACTION.md`.
+
+---
+
 ## 2026-09-14 (8)
 
 Completed:
