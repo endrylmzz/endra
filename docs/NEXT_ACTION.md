@@ -1,71 +1,101 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. ENDRA is deployed and working 24/7 - this is a real
-milestone (see CLAUDE.md section 49's MVP definition: "Telegram
-üzerinden konuşabiliyorum" is now true). Next is Ender's call again.
+Phase 3 (Tool Architecture) - `TOOLARCH-001` onward. Ender approved
+building this around MCP (Model Context Protocol) rather than a fully
+bespoke system, after researching current (2026) agent architecture
+practice.
 
 Goal:
-Nothing blocking. What's next is which capability to build on top of
-a now-live system.
+Give ENDRA the ability to actually do things (not just talk), starting
+with the foundation: a tool contract, registry, router, risk/permission
+levels, confirmation flow for risky actions, and run logging - then
+prove it works against a real MCP server before calling it done.
 
-Current state - Production deployment:
+## Research findings this session (informing both Phase 2 and Phase 3)
 
-- Host: RepoCloud VPS, `vps-3737633d.vps.rcld.dev`, project name
-  `endra-core`, cheapest tier (1 vCPU/2GB RAM/30GB SSD, ~$6/mo),
-  deployed via RepoCloud's AI deploy agent (not manually set up -
-  given custom instructions describing the build/start/health-check
-  contract, see chat history for the exact instructions used).
-- Both `apps/core` and `apps/telegram-adapter` run as systemd services
-  (`endra-core`, `endra-telegram`) under a dedicated non-root `endra`
-  user, auto-restart on failure, enabled on boot.
-- `/opt/endra/.env` on the server holds the real secrets (separate
-  from this repo's local `.env` - they had to be pasted into the
-  RepoCloud deploy agent's chat once, manually, by Ender).
-- Firewall: only SSH (22) open, deny-all inbound otherwise. Core's API
-  is NOT publicly reachable - by design, only the Telegram adapter
-  calls it, over localhost. This is a deliberate, good security
-  default - don't "fix" this by opening a public port later without a
-  real reason.
-- Auto-updates: a nightly cron (02:17 UTC) pulls the latest `main` from
-  GitHub, rebuilds, and restarts both services. Pushing to `main` on
-  GitHub (`github.com/endrylmzz/endra`, now **public** - see below) is
-  effectively continuous deployment; there is no staging environment
-  or manual approval step before it reaches production.
-- The repo was made **public** (Ender's choice) so RepoCloud's deploy
-  form (which only accepts public repos on the simple path) could
-  clone it directly. Verified before doing this: no secrets exist
-  anywhere in git history (checked with `git log --all -p` grepping
-  for known key/token fragments) - only a Telegram user id appears,
-  which isn't a credential.
-- Fixed during live use: Telegram was rendering literal `**asterisks**`
-  instead of bold text - `TelegramClient.sendMessage` now sends
-  `parse_mode: "Markdown"`, with a plain-text retry if Telegram's
-  parser rejects the LLM's output (its Markdown parser is strict about
-  balanced entities).
-- The local dev machine's copies of `apps/core`/`apps/telegram-adapter`
-  were stopped (they were briefly running in parallel with the VPS
-  and caused a real Telegram long-polling conflict - "Conflict:
-  terminated by other getUpdates request" - fixed by killing the local
-  processes). Going forward, only start them locally for development/
-  testing, not for Ender's actual daily use.
+- Memory: multi-signal fusion (semantic + keyword + importance +
+  recency) beats vector-similarity-alone retrieval - already
+  implemented (MEMORY-006). "ADD-only" extraction (treat both user
+  statements and assistant confirmations as memory candidates) - also
+  implemented (MEMORY-007).
+- Tools: MCP (Anthropic-originated, now also officially supported by
+  OpenAI's Agents SDK) standardizes tool discovery/execution so tools
+  aren't hand-built one by one. Confirmed: **MCP itself has no
+  standard authorization/confirmation layer at the tool-call boundary**
+  - that part is still ENDRA-specific work, not something MCP gives
+    for free. This matches CLAUDE.md's original section 20 design
+    (`pending_action`/`approval_id`/`expires_at`) - the plan doesn't
+    change, just how tools are sourced/invoked does.
+- Decision: adopt MCP as the tool-calling layer for Phase 3, but keep
+  building ENDRA's own permission/confirmation/audit layer on top,
+  since that's the part with no existing standard.
 
-## What's next - same real options as before, now with a live system
+## Current state - Phase 2 (Memory), now substantially deeper
 
-- **Phase 2 (Memory)**: `MEMORY-004` (preferences) onward.
-- **Phase 3 (Tools)**: `EndraTool` contract, registry, router,
-  permissions, confirmation system.
-- **Something new**: now that Ender is actually using ENDRA daily,
-  real usage may surface its own priorities (e.g. voice, since OpenAI
-  is already the provider; or a specific tool he wants first).
+- `apps/core/src/memory/preferences.ts` - `getPreference`/`setPreference`,
+  backed by a new `preferences` table (unique on `user_id, key`).
+- `apps/core/src/memory/embeddings.ts` - `embedText()`, OpenAI
+  `text-embedding-3-small`.
+- `apps/core/src/memory/semantic-memory.ts` - `saveMemory`,
+  `searchMemories` (fused ranking via the `search_memories` Postgres
+  function), `findSimilarMemory` (pure cosine similarity, for dedup).
+- `apps/core/src/memory/promotion.ts` - `extractMemoryCandidates`
+  (one LLM call, JSON-parsed, empty array on any parse failure - never
+  throws over a formatting quirk), `promoteMemories` (dedup then
+  save).
+- New migrations: `memories` (+ pgvector, + generated `tsvector`
+  column for keyword search), `preferences`, `search_memories()` and
+  `find_similar_memory()` SQL functions.
+- `message-service.ts` now: searches memories before calling the LLM
+  (appended to the system prompt if any are found), and fires off
+  extraction+promotion in the background after replying (never
+  awaited - a promotion failure is logged to `console.error` and
+  otherwise invisible to the user).
+- Verified live (real OpenAI + Supabase): a two-turn conversation where
+  a stated preference ("favori rengim mavi") was promoted to long-term
+  memory and correctly surfaced in a later, unrelated-topic turn.
+- **Not done, not started**: `MEMORY-008` (project memory - arguably
+  now just a `type: "project"` memory, may not need separate work),
+  entity-aware relevance boosting (research mentioned this as a further
+  refinement beyond the 4-signal fusion already implemented - skipped
+  for now, real complexity/cost tradeoff, revisit if retrieval quality
+  turns out to need it).
+
+## Phase 3 (Tools) - plan
+
+1. `TOOLARCH-001` `EndraTool` contract in `packages/agent-contracts`
+   (name, description, category, riskLevel, requiresConfirmation,
+   inputSchema, `execute()`) - matches CLAUDE.md section 18 closely.
+2. `TOOLARCH-002`/`003` Tool Registry + Router in `apps/core/src/tools/`.
+3. `TOOLARCH-004`/`005` Risk levels (read/write/critical) +
+   confirmation state, backed by a new `approvals` table
+   (`pending_action`/`approval_id`/`expires_at`, per CLAUDE.md
+   section 20) - critical/requires-confirmation tools never execute
+   immediately, they create a pending approval instead.
+4. `TOOLARCH-006` Tool run logging - new `tool_runs` table, same
+   never-throws-on-its-own-failure pattern as `agent_runs`.
+5. `TOOLARCH-007` First test tools: `get_current_time`, `calculator`
+   (both `read`, no confirmation), `notes` (`write`, Supabase-backed,
+   new `notes` table).
+6. MCP proof: connect to `@modelcontextprotocol/server-everything`
+   (Anthropic's official reference/test server - runs locally via
+   stdio, no account/API key needed) using `@modelcontextprotocol/sdk`,
+   list its tools, wrap them as `EndraTool` instances via the registry,
+   and execute one for real.
+7. **Not in this pass**: actually wiring tool-calling into
+   `message-service.ts`'s live LLM loop (i.e. OpenAI deciding to call
+   a tool mid-conversation, in production). Build and verify the
+   architecture standalone first, the same way LLM providers and
+   memory were built before being wired in - ask before flipping that
+   on in production, since it changes live chat behavior and adds a
+   tool-call round-trip to every message.
 
 Important:
 
-- Any future code change needs `npm test`/lint/format clean AND a real
-  push to `main` to actually reach production now - there's no
-  separate deploy step to forget, but also no safety net (no staging,
-  no approval gate). Be more careful about what lands on `main`, since
-  it auto-deploys nightly (and can be forced sooner via the RepoCloud
-  agent's "Rebuild/Update" button).
-- Don't touch the firewall/public-port setup without a concrete reason
-  - Core being unreachable from the internet is intentional.
+- Real external tools (weather, web search, calendar, Gmail - Phase 5)
+  will likely need their own API keys/OAuth once we get there - ask
+  Ender for the specific credential only when that specific tool is
+  being built, not preemptively.
+- Keep verifying with real end-to-end tests (not just mocks) before
+  marking anything done, per this session's established practice.

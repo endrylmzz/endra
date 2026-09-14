@@ -26,6 +26,9 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
     saveMessage: vi.fn(async (conversationId: string, message: unknown) => {
       calls.saveMessage.push({ conversationId, message });
     }),
+    searchMemories: vi.fn(async () => []),
+    extractMemoryCandidates: vi.fn(async () => []),
+    promoteMemories: vi.fn(async () => {}),
     loadPersona: vi.fn(() => "You are ENDRA."),
     logAgentRun: vi.fn(async (entry: unknown) => {
       calls.logAgentRun.push(entry);
@@ -35,6 +38,13 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
   };
 
   return { deps, calls };
+}
+
+// Flush the microtask queue so a fire-and-forget chain started inside
+// handleMessage (extract -> promote) has a chance to run before we
+// assert on it.
+async function flushMicrotasks() {
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 describe("handleMessage", () => {
@@ -82,6 +92,61 @@ describe("handleMessage", () => {
         outputTokens: 4,
       },
     ]);
+  });
+
+  it("appends relevant long-term memories to the system prompt when found", async () => {
+    const { deps } = fakeDeps({
+      searchMemories: vi.fn(async () => [
+        {
+          id: "m1",
+          content: "Ender TypeScript sever.",
+          type: "semantic" as const,
+          importance: 0.6,
+          score: 0.9,
+        },
+      ]),
+    });
+
+    await handleMessage(
+      { channel: "api", userId: "ender", conversationId: "public-conv-id", message: "Merhaba" },
+      deps,
+    );
+
+    expect(deps.llmProvider?.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining("Ender TypeScript sever."),
+      }),
+    );
+  });
+
+  it("extracts and promotes memory candidates in the background after replying", async () => {
+    const { deps } = fakeDeps();
+
+    await handleMessage(
+      { channel: "api", userId: "ender", conversationId: "public-conv-id", message: "Merhaba" },
+      deps,
+    );
+    await flushMicrotasks();
+
+    expect(deps.extractMemoryCandidates).toHaveBeenCalledWith(
+      { userMessage: "Merhaba", assistantMessage: "Merhaba Ender." },
+      deps.llmProvider,
+    );
+    expect(deps.promoteMemories).toHaveBeenCalledWith("user-1", []);
+  });
+
+  it("does not let a memory-promotion failure affect the response", async () => {
+    const { deps } = fakeDeps({
+      extractMemoryCandidates: vi.fn().mockRejectedValue(new Error("extraction failed")),
+    });
+
+    const result = await handleMessage(
+      { channel: "api", userId: "ender", conversationId: "public-conv-id", message: "Merhaba" },
+      deps,
+    );
+    await flushMicrotasks();
+
+    expect(result).toEqual({ message: "Merhaba Ender.", conversationId: "public-conv-id" });
   });
 
   it("logs an error run and rethrows when the LLM call fails", async () => {

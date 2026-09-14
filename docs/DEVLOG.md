@@ -4,6 +4,73 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (7)
+
+Completed:
+
+- MEMORY-004 User preferences storage
+- MEMORY-005 Semantic memory storage and embeddings
+- MEMORY-006 Memory retrieval (multi-signal fusion)
+- MEMORY-007 Memory promotion pipeline
+
+Changed:
+
+- Researched 2026 AI agent memory architecture practice before
+  building (mem0.ai's "State of AI Agent Memory 2026" and related
+  sources): the key finding was that multi-signal fusion (semantic +
+  keyword + importance + recency) measurably beats vector-similarity-
+  alone retrieval, and "ADD-only" extraction (both user statements and
+  assistant confirmations are memory candidates) is the proven
+  extraction pattern. Both implemented directly rather than adopting a
+  memory framework (Mem0, Zep, etc.) - consistent with this project's
+  established preference for small, self-written, well-tested code
+  over adding frameworks (same reasoning as the Telegram adapter using
+  raw fetch instead of a library).
+- Added migrations: `preferences` table; `memories` table (pgvector
+  `embedding`, generated `tsvector` column for keyword search);
+  `search_memories()` SQL function (fused ranking: 45% semantic + 25%
+  keyword rank + 15% importance + 15% recency decay); `find_similar_memory()`
+  (pure cosine similarity, separate from the fused score, for dedup).
+- Added `apps/core/src/memory/{preferences,embeddings,semantic-memory,promotion}.ts`.
+  `extractMemoryCandidates()` makes one LLM call per exchange asking
+  what's worth remembering (JSON output, empty array on any parse
+  failure - a malformed response just means "nothing extracted this
+  turn," never a crash). `promoteMemories()` checks each candidate
+  against `find_similar_memory` (threshold 0.92) before saving.
+- Wired into `message-service.ts`: `searchMemories()` runs before the
+  LLM call (relevant memories get appended to the system prompt);
+  extraction+promotion run **after** replying, fire-and-forget
+  (`void promise.catch(...)`, never awaited) so a slow or failing
+  memory pipeline can never delay or break the actual reply.
+- `MessageServiceDeps` grew to include `searchMemories`,
+  `extractMemoryCandidates`, `promoteMemories` - same injectable-deps
+  pattern as everything else, so the service stays testable without
+  hitting OpenAI/Supabase. 4 new tests for `handleMessage` covering
+  memory-augmented prompts and the fire-and-forget behavior (using a
+  microtask flush to let the background chain run before asserting).
+- Verified live end-to-end (real OpenAI + Supabase): a two-turn
+  conversation ("favori rengim mavidir" -> unrelated topic) where the
+  stated preference was correctly promoted to long-term memory and
+  surfaced again in the second turn via semantic search, not just raw
+  conversation history.
+
+Problems:
+
+- A test-script race (not a code bug): my own smoke-test script
+  deleted its throwaway user row before the fire-and-forget promotion
+  from the _second_ message had finished, causing an expected foreign-
+  key error in that background job. Fixed by waiting longer before
+  cleanup in the test script; not a production concern since real
+  usage never deletes the user mid-conversation.
+
+Next:
+
+- Phase 3 (Tool Architecture), built around MCP - see
+  `docs/NEXT_ACTION.md` for the plan and the research behind the MCP
+  decision.
+
+---
+
 ## 2026-09-14 (6)
 
 Completed:

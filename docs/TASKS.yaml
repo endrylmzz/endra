@@ -225,7 +225,7 @@ tasks:
   - id: MEMORY-004
     title: User preferences storage
     phase: 2
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - MEMORY-002
@@ -233,7 +233,7 @@ tasks:
   - id: MEMORY-005
     title: Semantic memory storage and embeddings
     phase: 2
-    status: pending
+    status: done
     priority: high
     depends_on:
       - MEMORY-002
@@ -241,7 +241,7 @@ tasks:
   - id: MEMORY-006
     title: Memory retrieval (similarity + importance + recency ranking)
     phase: 2
-    status: pending
+    status: done
     priority: high
     depends_on:
       - MEMORY-005
@@ -249,7 +249,7 @@ tasks:
   - id: MEMORY-007
     title: Memory promotion pipeline (extraction, dedup, conflict detection)
     phase: 2
-    status: pending
+    status: done
     priority: high
     depends_on:
       - MEMORY-005
