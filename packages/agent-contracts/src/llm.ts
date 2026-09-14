@@ -12,6 +12,8 @@ export interface LLMMessage {
   toolCallId?: string;
   /** Set on an "assistant" message that requested tool calls. */
   toolCalls?: LLMToolCall[];
+  /** Data URLs (e.g. "data:image/jpeg;base64,...") - vision input on a "user" message. */
+  imageUrls?: string[];
 }
 
 export interface LLMToolDefinition {

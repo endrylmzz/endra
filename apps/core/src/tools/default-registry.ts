@@ -1,12 +1,15 @@
 // The tools ENDRA actually has available in the live chat pipeline.
-// Real external tools (weather, web search, calendar, Gmail - Phase 5)
-// get registered here too once they exist.
+// Real external tools that need their own API key/OAuth (weather, web
+// search, calendar, Gmail - Phase 5) get registered here too once
+// they exist and Ender has provided the credential each one needs.
 
 import { ToolRegistry } from "./registry.js";
 import { ToolRouter } from "./router.js";
 import { getCurrentTimeTool } from "./builtin/get-current-time.js";
 import { calculatorTool } from "./builtin/calculator.js";
-import { createNotesTool } from "./builtin/notes.js";
+import { createNotesTool, createListNotesTool, createDeleteNoteTool } from "./builtin/notes.js";
+import { createGenerateImageTool } from "./builtin/generate-image.js";
+import { cryptoPriceTool } from "./builtin/crypto-price.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -15,6 +18,10 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(getCurrentTimeTool);
     registry.register(calculatorTool);
     registry.register(createNotesTool());
+    registry.register(createListNotesTool());
+    registry.register(createDeleteNoteTool());
+    registry.register(createGenerateImageTool());
+    registry.register(cryptoPriceTool);
   }
   return registry;
 }

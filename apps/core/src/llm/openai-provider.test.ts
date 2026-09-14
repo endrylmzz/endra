@@ -145,4 +145,37 @@ describe("OpenAIProvider", () => {
       }),
     );
   });
+
+  it("builds multimodal content when a user message has imageUrls", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "Bir kedi görüyorum." } }],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    await provider.generate({
+      messages: [
+        {
+          role: "user",
+          content: "Bu ne?",
+          imageUrls: ["data:image/jpeg;base64,AAAA"],
+        },
+      ],
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Bu ne?" },
+              { type: "image_url", image_url: { url: "data:image/jpeg;base64,AAAA" } },
+            ],
+          },
+        ],
+      }),
+    );
+  });
 });

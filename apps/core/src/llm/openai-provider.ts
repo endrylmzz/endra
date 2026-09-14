@@ -33,6 +33,15 @@ function toOpenAIMessage(
       })),
     };
   }
+  if (m.role === "user" && m.imageUrls && m.imageUrls.length > 0) {
+    return {
+      role: "user",
+      content: [
+        ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
+        ...m.imageUrls.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+      ],
+    };
+  }
   return { role: m.role, content: m.content };
 }
 

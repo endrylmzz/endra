@@ -1,10 +1,11 @@
-// Core's actual message pipeline: resolve identity -> check for a
-// pending tool confirmation -> load history and relevant long-term
-// memory -> call the LLM (with tools) with ENDRA's persona -> run any
-// requested tools, looping until a final text reply -> persist both
-// sides -> log the run -> (in the background) extract and promote new
-// long-term memories. Kept out of the route file (routes/message.ts)
-// so it can grow without touching the HTTP layer.
+// Core's actual message pipeline: resolve identity -> transcribe/attach
+// any voice note or photo -> check for a pending tool confirmation ->
+// load history and relevant long-term memory -> call the LLM (with
+// tools and vision) with ENDRA's persona -> run any requested tools,
+// looping until a final text reply -> persist both sides -> log the
+// run -> (in the background) extract and promote new long-term
+// memories. Kept out of the route file (routes/message.ts) so it can
+// grow without touching the HTTP layer.
 //
 // Confirmation prompts and wrap-up replies are phrased by the LLM
 // itself (one extra text-only generate() call, no tools), not built as
@@ -15,6 +16,7 @@
 // time, regardless of how the LLM phrases anything.
 
 import type {
+  EndraAttachment,
   EndraMessageRequest,
   EndraMessageResponseData,
   LLMMessage,
@@ -28,6 +30,7 @@ import { extractMemoryCandidates, promoteMemories } from "../memory/promotion.js
 import { loadPersona } from "../persona/load-persona.js";
 import { logAgentRun } from "../observability/agent-run-log.js";
 import { OpenAIProvider } from "../llm/openai-provider.js";
+import { transcribeAudio } from "../media/transcription.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolRouter } from "../tools/router.js";
 import { getDefaultToolRegistry, getDefaultToolRouter } from "../tools/default-registry.js";
@@ -43,6 +46,7 @@ export interface MessageServiceDeps {
   promoteMemories: typeof promoteMemories;
   loadPersona: typeof loadPersona;
   logAgentRun: typeof logAgentRun;
+  transcribeAudio: typeof transcribeAudio;
   llmProvider: LLMProvider;
   toolRegistry: ToolRegistry;
   toolRouter: ToolRouter;
@@ -65,6 +69,17 @@ function buildSystemPrompt(persona: string, memories: RankedMemory[], note?: str
   return `${persona}${memoryBlock}${noteBlock}`;
 }
 
+function isImageAttachment(value: unknown): value is EndraAttachment {
+  const v = value as Record<string, unknown> | null;
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    v.type === "image" &&
+    typeof v.data === "string" &&
+    typeof v.mimeType === "string"
+  );
+}
+
 const MAX_TOOL_ITERATIONS = 4;
 
 export async function handleMessage(
@@ -79,6 +94,7 @@ export async function handleMessage(
   const promoteMemoriesFn = deps.promoteMemories ?? promoteMemories;
   const loadPersonaFn = deps.loadPersona ?? loadPersona;
   const logAgentRunFn = deps.logAgentRun ?? logAgentRun;
+  const transcribeAudioFn = deps.transcribeAudio ?? transcribeAudio;
   const llm = deps.llmProvider ?? getDefaultProvider();
   const toolRegistry = deps.toolRegistry ?? getDefaultToolRegistry();
   const toolRouter = deps.toolRouter ?? getDefaultToolRouter();
@@ -93,14 +109,28 @@ export async function handleMessage(
   const toolContext = { userId, conversationId };
   const history = await getRecentMessagesFn(conversationId);
 
-  await saveMessageFn(conversationId, { role: "user", content: request.message });
+  // A voice note becomes its transcribed text; a photo becomes vision
+  // input on this turn's user message - neither changes anything else
+  // in the pipeline below.
+  let effectiveMessage = request.message;
+  let imageUrls: string[] | undefined;
+  for (const attachment of request.attachments ?? []) {
+    if (attachment.type === "audio") {
+      const transcript = await transcribeAudioFn(attachment.data, attachment.mimeType);
+      effectiveMessage = effectiveMessage ? `${effectiveMessage}\n${transcript}` : transcript;
+    } else if (attachment.type === "image") {
+      imageUrls = [...(imageUrls ?? []), `data:${attachment.mimeType};base64,${attachment.data}`];
+    }
+  }
+
+  await saveMessageFn(conversationId, { role: "user", content: effectiveMessage });
 
   const startedAt = Date.now();
 
   async function replyNaturally(note: string): Promise<EndraMessageResponseData> {
     const result = await llm.generate({
       systemPrompt: buildSystemPrompt(loadPersonaFn(), [], note),
-      messages: [...history, { role: "user", content: request.message }],
+      messages: [...history, { role: "user", content: effectiveMessage }],
     });
     await saveMessageFn(conversationId, { role: "assistant", content: result.content });
     await logAgentRunFn({
@@ -120,7 +150,7 @@ export async function handleMessage(
   // message as the answer to that instead of a fresh request.
   const pendingApproval = await findPendingApprovalFn(conversationId);
   if (pendingApproval) {
-    const intent = detectConfirmationIntent(request.message);
+    const intent = detectConfirmationIntent(effectiveMessage);
 
     if (intent === "approve") {
       const result = await toolRouter.confirm(pendingApproval.id, toolContext);
@@ -142,7 +172,7 @@ export async function handleMessage(
     // just sits there until confirmed, rejected, or it expires (5 min).
   }
 
-  const relevantMemories = await searchMemoriesFn(userId, request.message).catch(() => []);
+  const relevantMemories = await searchMemoriesFn(userId, effectiveMessage).catch(() => []);
   const systemPrompt = buildSystemPrompt(loadPersonaFn(), relevantMemories);
   const toolDefs: LLMToolDefinition[] = toolRegistry.list().map((tool) => ({
     name: tool.name,
@@ -152,8 +182,9 @@ export async function handleMessage(
 
   const conversationMessages: LLMMessage[] = [
     ...history,
-    { role: "user", content: request.message },
+    { role: "user", content: effectiveMessage, ...(imageUrls ? { imageUrls } : {}) },
   ];
+  const responseAttachments: EndraAttachment[] = [];
 
   try {
     let lastResult;
@@ -191,6 +222,19 @@ export async function handleMessage(
               arguments: call.arguments,
               message:
                 "Bu işlem kullanıcının onayını gerektiriyor. Kullanıcıya doğal bir Türkçe cümleyle ne yapmak istediğini açıkla ve onay iste (evet/hayır şeklinde cevap vermesini iste). JSON gösterme.",
+            }),
+          });
+        } else if (isImageAttachment(outcome.result.data)) {
+          // Don't feed a huge base64 blob back into the model as text -
+          // it's expensive and the model can't usefully "see" it that
+          // way. Send the actual bytes straight to the user instead.
+          responseAttachments.push(outcome.result.data);
+          conversationMessages.push({
+            role: "tool",
+            toolCallId: call.id,
+            content: JSON.stringify({
+              success: outcome.result.success,
+              message: "Görsel oluşturuldu ve kullanıcıya gönderiliyor.",
             }),
           });
         } else {
@@ -244,7 +288,7 @@ export async function handleMessage(
     // never delay or break the actual reply (CLAUDE.md section 23 - not
     // every turn becomes a memory, and this is a second LLM call).
     void extractMemoryCandidatesFn(
-      { userMessage: request.message, assistantMessage: replyContent },
+      { userMessage: effectiveMessage, assistantMessage: replyContent },
       llm,
     )
       .then((candidates) => promoteMemoriesFn(userId, candidates))
@@ -254,7 +298,11 @@ export async function handleMessage(
 
     // The caller's own conversationId, not the internal Supabase id -
     // the response contract shouldn't leak storage details.
-    return { message: replyContent, conversationId: request.conversationId };
+    return {
+      message: replyContent,
+      conversationId: request.conversationId,
+      ...(responseAttachments.length > 0 ? { attachments: responseAttachments } : {}),
+    };
   } catch (err) {
     await logAgentRunFn({
       conversationId,

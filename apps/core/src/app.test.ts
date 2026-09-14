@@ -81,6 +81,37 @@ describe("POST /api/v1/message", () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it("accepts an empty message when an attachment is present", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/message",
+      payload: {
+        channel: "telegram",
+        userId: "ender",
+        conversationId: "test-conversation",
+        message: "",
+        attachments: [{ type: "audio", data: "ZmFrZQ==", mimeType: "audio/ogg" }],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("rejects an empty message with no attachments", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/message",
+      payload: {
+        channel: "api",
+        userId: "ender",
+        conversationId: "test-conversation",
+        message: "",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it("rejects an unknown channel value", async () => {
     const response = await app.inject({
       method: "POST",
