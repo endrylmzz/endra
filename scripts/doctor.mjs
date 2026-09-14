@@ -32,7 +32,7 @@ check("Supabase config", () => {
   if (!existsSync(envPath)) return true; // not required until Phase 2
   const env = readFileSync(envPath, "utf8");
   const hasUrl = /^SUPABASE_URL=.+/m.test(env);
-  const hasKey = /^SUPABASE_SERVICE_ROLE_KEY=.+/m.test(env);
+  const hasKey = /^SUPABASE_SECRET_KEY=.+/m.test(env);
   // Either both set or both unset - a half-configured Supabase is worth flagging.
   return hasUrl === hasKey;
 });
