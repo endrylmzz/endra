@@ -4,6 +4,70 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-14 (5)
+
+Completed:
+
+- TELEGRAM-001 Telegram bot integration setup
+- TELEGRAM-003 User authorization
+- TELEGRAM-004 Inbound message handling into ENDRA Core
+- TELEGRAM-005 Reply delivery back to Telegram
+- TELEGRAM-006 Duplicate update prevention
+- TELEGRAM-007 Typing indicator state
+- TELEGRAM-008 Error handling and message length handling
+
+(`TELEGRAM-002`, the n8n workflow, intentionally NOT done - see
+ADR-005.)
+
+Changed:
+
+- Recorded ADR-005: Telegram is wired directly into Core via a new
+  standalone adapter (`apps/telegram-adapter`), bypassing n8n for now.
+  RepoCloud/n8n access was never set up in this project, and Ender
+  wanted a working bot today rather than waiting on that. Long polling
+  needs no public URL/webhook, so this needed zero deployment to test.
+- Added `apps/telegram-adapter`: `telegram-api.ts` (raw fetch-based
+  Telegram Bot API client - no library dependency, deliberately, since
+  it's a temporary bridge and the API surface needed is tiny),
+  `authorization.ts` (allowlist check, fail-closed), `core-client.ts`
+  (calls Core's existing `/api/v1/message`), `handle-update.ts` (the
+  actual per-message logic, injectable deps for testing),
+  `index.ts` (the long-polling loop).
+- 13 new tests across the adapter (chunking, authorization, Core
+  client, and the full handle-update flow with injected fakes) - none
+  touch the real Telegram or Core APIs.
+- Found and fixed a real problem during live testing: the Telegram bot
+  token given earlier in this project's chat history had been revoked
+  (`getMe` returned 401 directly from Telegram, confirmed with a raw
+  curl call before suspecting our own code) - Ender regenerated it via
+  BotFather and gave the new one.
+- Captured Ender's real Telegram user id (`1028764118`) from an
+  "unauthorized" log line the first time he messaged the bot with an
+  empty allowlist, then set `ENDRA_ALLOWED_TELEGRAM_USERS` to it.
+- Verified live, end to end: Ender sent real messages via Telegram
+  (@endraaibot) and received real ENDRA replies, generated through the
+  full pipeline built earlier this session (identity, memory,
+  persona, OpenAI, logging).
+
+Problems:
+
+- The originally-provided Telegram bot token was invalid (revoked).
+  Not a bug in this project's code - confirmed independently with a
+  direct `curl .../getMe` call before touching any adapter code.
+- Neither `apps/core` nor `apps/telegram-adapter` is deployed anywhere
+  - both were started manually and are only running because the
+    processes haven't been killed. No supervisor, no 24/7 guarantee yet.
+    Whether RepoCloud can host a custom app (not just marketplace apps
+    like n8n) is still an open question for Ender to check.
+
+Next:
+
+- Ender's choice: deeper memory (Phase 2), tools (Phase 3), or sort
+  out where Core actually gets deployed for 24/7 use. See
+  `docs/NEXT_ACTION.md`.
+
+---
+
 ## 2026-09-14 (4)
 
 Completed:

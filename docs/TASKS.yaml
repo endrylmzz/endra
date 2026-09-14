@@ -8,7 +8,7 @@
 
 project: endra
 
-current_phase: 2
+current_phase: 4
 
 tasks:
   # ---------------------------------------------------------------------
@@ -327,10 +327,9 @@ tasks:
   - id: TELEGRAM-001
     title: Telegram bot integration setup
     phase: 4
-    status: pending
+    status: done
     priority: critical
-    depends_on:
-      - TOOLARCH-007
+    depends_on: []
 
   - id: TELEGRAM-002
     title: n8n Telegram trigger workflow
@@ -343,15 +342,15 @@ tasks:
   - id: TELEGRAM-003
     title: User authorization (ENDRA_ALLOWED_TELEGRAM_USERS)
     phase: 4
-    status: pending
+    status: done
     priority: critical
     depends_on:
-      - TELEGRAM-002
+      - TELEGRAM-001
 
   - id: TELEGRAM-004
     title: Inbound message handling into ENDRA Core
     phase: 4
-    status: pending
+    status: done
     priority: critical
     depends_on:
       - TELEGRAM-003
@@ -359,7 +358,7 @@ tasks:
   - id: TELEGRAM-005
     title: Reply delivery back to Telegram
     phase: 4
-    status: pending
+    status: done
     priority: high
     depends_on:
       - TELEGRAM-004
@@ -367,7 +366,7 @@ tasks:
   - id: TELEGRAM-006
     title: Duplicate update prevention
     phase: 4
-    status: pending
+    status: done
     priority: high
     depends_on:
       - TELEGRAM-004
@@ -375,7 +374,7 @@ tasks:
   - id: TELEGRAM-007
     title: Typing indicator state
     phase: 4
-    status: pending
+    status: done
     priority: low
     depends_on:
       - TELEGRAM-005
@@ -383,7 +382,7 @@ tasks:
   - id: TELEGRAM-008
     title: Error handling and message length handling
     phase: 4
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - TELEGRAM-005

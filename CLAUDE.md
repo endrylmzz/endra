@@ -44,7 +44,7 @@ Ayrıntılı mimari, komponent sorumlulukları ve repository layout için:
 **`docs/ARCHITECTURE.md`**.
 
 Kalıcı mimari kararlar (neden n8n, neden Supabase, neden Telegram önce,
-neden Core ayrı bir servis) için: **`docs/decisions/`** (ADR-001..004).
+neden Core ayrı bir servis) için: **`docs/decisions/`** (ADR-001..005).
 Kabul edilmiş (Accepted) bir ADR sebepsiz değiştirilmez — değişiklik
 gerekiyorsa yeni bir ADR açılır, eskisi silinmez.
 
@@ -68,6 +68,7 @@ gerekiyorsa yeni bir ADR açılır, eskisi silinmez.
 endra/
 ├── apps/
 │   ├── core/                 ENDRA Core (channel-agnostic API)
+│   ├── telegram-adapter/     Telegram kanal adaptörü (geçici, bkz. ADR-005)
 │   └── web/                  reserved — Phase 8'den önce içi doldurulmaz
 ├── packages/
 │   ├── shared/                paylaşılan tipler/yardımcılar

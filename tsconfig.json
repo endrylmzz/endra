@@ -4,6 +4,7 @@
     { "path": "packages/shared" },
     { "path": "packages/agent-contracts" },
     { "path": "packages/tool-sdk" },
-    { "path": "apps/core" }
+    { "path": "apps/core" },
+    { "path": "apps/telegram-adapter" }
   ]
 }

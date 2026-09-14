@@ -1,31 +1,32 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 2 — Persistent Memory (Phase 1 — ENDRA Core is now fully done)
+Phase 4 — Telegram (mostly done - jumped ahead of Phase 3 deliberately,
+see ADR-005)
 
 Overall Progress:
-35% (see `npm run status`, computed from `docs/TASKS.yaml`)
+44% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Phase 1 (ENDRA Core) complete.** `/api/v1/message` now gives a real,
-persona-driven OpenAI reply end-to-end: resolves identity → loads
-conversation history → calls the LLM with ENDRA's persona → persists
-both sides → logs the run. Verified against the real live stack
-(Supabase + OpenAI), including a follow-up message that correctly
-recalled prior conversation context. Smoke-test data was cleaned up
-afterward.
+**Ender can now talk to ENDRA from his phone via Telegram (@endraaibot).**
+`apps/telegram-adapter` long-polls Telegram and calls ENDRA Core
+directly (bypassing n8n for now - ADR-005, since RepoCloud/n8n access
+wasn't set up yet). Verified live: Ender sent real messages through
+Telegram and got real ENDRA replies. Only `TELEGRAM-002` (the eventual
+n8n workflow) remains pending in Phase 4.
 
 Currently Working:
-(none)
+(none) - both `apps/core` and `apps/telegram-adapter` are running
+locally (manually started) for Ender to keep using.
 
 Blocked:
-None
+None functionally, but noted as unresolved: whether/how to deploy
+`apps/core` + the Telegram integration somewhere persistent (RepoCloud
+or elsewhere) for 24/7 availability - see `docs/NEXT_ACTION.md`.
 
 Next:
-Deeper into Phase 2 — MEMORY-004 (preferences) or MEMORY-005 (semantic
-memory/embeddings) — or start Phase 3 (Tool Architecture), or Phase 4
-(Telegram, token already sits in `.env` unused). See
-`docs/NEXT_ACTION.md` for the tradeoffs.
+Either deeper into Phase 2 (memory), Phase 3 (tools), or resolving the
+deployment/24-7 question. Ender's call - see `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-14

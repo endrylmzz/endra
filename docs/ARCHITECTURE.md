@@ -66,6 +66,7 @@ ENDRA Core → Desktop Companion → Local Computer
 endra/
 ├── apps/
 │   ├── core/                 ENDRA Core service
+│   ├── telegram-adapter/     Telegram channel adapter (temporary, see ADR-005)
 │   └── web/                  reserved for Phase 8
 ├── packages/
 │   ├── shared/                shared types/utilities
