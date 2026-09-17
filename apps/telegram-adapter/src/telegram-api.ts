@@ -89,6 +89,26 @@ export class TelegramClient {
     }
   }
 
+  async sendVoice(
+    chatId: number,
+    base64Data: string,
+    mimeType: string,
+    caption?: string,
+  ): Promise<void> {
+    const buffer = Buffer.from(base64Data, "base64");
+    const extension = mimeType.split("/")[1] ?? "ogg";
+    const form = new FormData();
+    form.append("chat_id", String(chatId));
+    if (caption) form.append("caption", caption);
+    form.append("voice", new Blob([buffer], { type: mimeType }), `voice.${extension}`);
+
+    const response = await fetch(this.url("sendVoice"), { method: "POST", body: form });
+    const data = (await response.json()) as { ok: boolean; description?: string };
+    if (!data.ok) {
+      throw new Error(`Telegram sendVoice failed: ${data.description ?? response.statusText}`);
+    }
+  }
+
   async sendTyping(chatId: number): Promise<void> {
     await this.call("sendChatAction", { chat_id: chatId, action: "typing" });
   }

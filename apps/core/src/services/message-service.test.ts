@@ -67,6 +67,8 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
     toolRouter: fakeToolRouter(),
     findPendingApproval: vi.fn(async () => undefined),
     resolveApprovalStatus: vi.fn(async () => {}),
+    transcribeAudio: vi.fn(async () => "transkript metni"),
+    synthesizeSpeech: vi.fn(async () => "ZmFrZS1hdWRpbw=="),
     ...overrides,
   };
 
@@ -269,6 +271,47 @@ describe("handleMessage - tool calling", () => {
     // No natural final answer was produced for the original request -
     // nothing meaningful to consider for memory promotion this turn.
     expect(deps.extractMemoryCandidates).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleMessage - voice in, voice out (VOICE-003)", () => {
+  const voiceRequest = {
+    ...baseRequest,
+    message: "",
+    attachments: [{ type: "audio" as const, data: "ZmFrZQ==", mimeType: "audio/ogg" }],
+  };
+
+  it("transcribes the voice note and speaks the reply back", async () => {
+    const { deps } = fakeDeps();
+
+    const result = await handleMessage(voiceRequest, deps);
+
+    expect(deps.transcribeAudio).toHaveBeenCalledWith("ZmFrZQ==", "audio/ogg");
+    expect(deps.synthesizeSpeech).toHaveBeenCalledWith("Merhaba Ender.");
+    expect(result).toEqual({
+      message: "Merhaba Ender.",
+      conversationId: "public-conv-id",
+      attachments: [{ type: "audio", data: "ZmFrZS1hdWRpbw==", mimeType: "audio/ogg" }],
+    });
+  });
+
+  it("does not synthesize speech when the incoming message has no voice attachment", async () => {
+    const { deps } = fakeDeps();
+
+    const result = await handleMessage(baseRequest, deps);
+
+    expect(deps.synthesizeSpeech).not.toHaveBeenCalled();
+    expect(result).toEqual({ message: "Merhaba Ender.", conversationId: "public-conv-id" });
+  });
+
+  it("falls back to a text-only reply when speech synthesis fails", async () => {
+    const { deps } = fakeDeps({
+      synthesizeSpeech: vi.fn().mockRejectedValue(new Error("tts down")),
+    });
+
+    const result = await handleMessage(voiceRequest, deps);
+
+    expect(result).toEqual({ message: "Merhaba Ender.", conversationId: "public-conv-id" });
   });
 });
 

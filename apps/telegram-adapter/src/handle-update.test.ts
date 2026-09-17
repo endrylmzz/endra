@@ -9,6 +9,7 @@ function fakeDeps(overrides: Partial<HandleUpdateDeps> = {}): HandleUpdateDeps {
     callCore: vi.fn(async () => ({ message: "Merhaba Ender." })),
     sendMessage: vi.fn(async () => {}),
     sendPhoto: vi.fn(async () => {}),
+    sendVoice: vi.fn(async () => {}),
     sendTyping: vi.fn(async () => {}),
     ...overrides,
   };
@@ -127,6 +128,47 @@ describe("handleUpdate", () => {
     await handleUpdate(textUpdate("bir kedi çiz"), deps);
 
     expect(deps.sendPhoto).toHaveBeenCalledWith(42, "QUFB", "image/png", "İşte görsel!");
+    expect(deps.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("sends a voice note instead of a text message when Core's reply includes audio", async () => {
+    const deps = fakeDeps({
+      callCore: vi.fn(async () => ({
+        message: "Tabii, hatırlatıyorum.",
+        attachments: [{ type: "audio" as const, data: "QUFB", mimeType: "audio/ogg" }],
+      })),
+    });
+
+    const update: TelegramUpdate = {
+      update_id: 1,
+      message: {
+        message_id: 1,
+        from: { id: 42 },
+        chat: { id: 42 },
+        voice: { file_id: "voice-1", mime_type: "audio/ogg", duration: 2 },
+      },
+    };
+    await handleUpdate(update, deps);
+
+    expect(deps.sendVoice).toHaveBeenCalledWith(42, "QUFB", "audio/ogg", "Tabii, hatırlatıyorum.");
+    expect(deps.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("sends both a photo and a voice note without a duplicate caption when both are present", async () => {
+    const deps = fakeDeps({
+      callCore: vi.fn(async () => ({
+        message: "İşte görsel!",
+        attachments: [
+          { type: "image" as const, data: "QUFB", mimeType: "image/png" },
+          { type: "audio" as const, data: "QkJC", mimeType: "audio/ogg" },
+        ],
+      })),
+    });
+
+    await handleUpdate(textUpdate("bir kedi çiz"), deps);
+
+    expect(deps.sendPhoto).toHaveBeenCalledWith(42, "QUFB", "image/png", "İşte görsel!");
+    expect(deps.sendVoice).toHaveBeenCalledWith(42, "QkJC", "audio/ogg", undefined);
     expect(deps.sendMessage).not.toHaveBeenCalled();
   });
 });

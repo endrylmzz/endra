@@ -31,6 +31,7 @@ import { loadPersona } from "../persona/load-persona.js";
 import { logAgentRun } from "../observability/agent-run-log.js";
 import { OpenAIProvider } from "../llm/openai-provider.js";
 import { transcribeAudio } from "../media/transcription.js";
+import { synthesizeSpeech } from "../media/speech.js";
 import type { ToolRegistry } from "../tools/registry.js";
 import type { ToolRouter } from "../tools/router.js";
 import { getDefaultToolRegistry, getDefaultToolRouter } from "../tools/default-registry.js";
@@ -47,6 +48,7 @@ export interface MessageServiceDeps {
   loadPersona: typeof loadPersona;
   logAgentRun: typeof logAgentRun;
   transcribeAudio: typeof transcribeAudio;
+  synthesizeSpeech: typeof synthesizeSpeech;
   llmProvider: LLMProvider;
   toolRegistry: ToolRegistry;
   toolRouter: ToolRouter;
@@ -95,6 +97,7 @@ export async function handleMessage(
   const loadPersonaFn = deps.loadPersona ?? loadPersona;
   const logAgentRunFn = deps.logAgentRun ?? logAgentRun;
   const transcribeAudioFn = deps.transcribeAudio ?? transcribeAudio;
+  const synthesizeSpeechFn = deps.synthesizeSpeech ?? synthesizeSpeech;
   const llm = deps.llmProvider ?? getDefaultProvider();
   const toolRegistry = deps.toolRegistry ?? getDefaultToolRegistry();
   const toolRouter = deps.toolRouter ?? getDefaultToolRouter();
@@ -114,8 +117,10 @@ export async function handleMessage(
   // in the pipeline below.
   let effectiveMessage = request.message;
   let imageUrls: string[] | undefined;
+  let hadVoiceInput = false;
   for (const attachment of request.attachments ?? []) {
     if (attachment.type === "audio") {
+      hadVoiceInput = true;
       const transcript = await transcribeAudioFn(attachment.data, attachment.mimeType);
       effectiveMessage = effectiveMessage ? `${effectiveMessage}\n${transcript}` : transcript;
     } else if (attachment.type === "image") {
@@ -126,6 +131,20 @@ export async function handleMessage(
   await saveMessageFn(conversationId, { role: "user", content: effectiveMessage });
 
   const startedAt = Date.now();
+
+  // A voice note in gets a voice note back (VOICE-003) - mirrors this
+  // turn's input modality rather than a user-facing toggle. Falls back
+  // to text-only on any TTS failure instead of breaking the reply.
+  async function synthesizeVoiceAttachments(text: string): Promise<EndraAttachment[]> {
+    if (!hadVoiceInput) return [];
+    try {
+      const data = await synthesizeSpeechFn(text);
+      return [{ type: "audio", data, mimeType: "audio/ogg" }];
+    } catch (err) {
+      console.error("Speech synthesis failed:", err);
+      return [];
+    }
+  }
 
   async function replyNaturally(note: string): Promise<EndraMessageResponseData> {
     const result = await llm.generate({
@@ -143,7 +162,12 @@ export async function handleMessage(
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
     });
-    return { message: result.content, conversationId: request.conversationId };
+    const voiceAttachments = await synthesizeVoiceAttachments(result.content);
+    return {
+      message: result.content,
+      conversationId: request.conversationId,
+      ...(voiceAttachments.length > 0 ? { attachments: voiceAttachments } : {}),
+    };
   }
 
   // If a tool is waiting on this conversation's approval, treat this
@@ -267,7 +291,12 @@ export async function handleMessage(
           inputTokens: confirmationAsk.usage.inputTokens,
           outputTokens: confirmationAsk.usage.outputTokens,
         });
-        return { message: confirmationAsk.content, conversationId: request.conversationId };
+        const voiceAttachments = await synthesizeVoiceAttachments(confirmationAsk.content);
+        return {
+          message: confirmationAsk.content,
+          conversationId: request.conversationId,
+          ...(voiceAttachments.length > 0 ? { attachments: voiceAttachments } : {}),
+        };
       }
     }
 
@@ -296,12 +325,15 @@ export async function handleMessage(
         console.error("memory promotion failed:", err);
       });
 
+    const voiceAttachments = await synthesizeVoiceAttachments(replyContent);
+    const allAttachments = [...responseAttachments, ...voiceAttachments];
+
     // The caller's own conversationId, not the internal Supabase id -
     // the response contract shouldn't leak storage details.
     return {
       message: replyContent,
       conversationId: request.conversationId,
-      ...(responseAttachments.length > 0 ? { attachments: responseAttachments } : {}),
+      ...(allAttachments.length > 0 ? { attachments: allAttachments } : {}),
     };
   } catch (err) {
     await logAgentRunFn({

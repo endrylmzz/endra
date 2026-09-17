@@ -39,6 +39,8 @@ for (;;) {
         sendMessage: (chatId, text) => client.sendMessage(chatId, text),
         sendPhoto: (chatId, data, mimeType, caption) =>
           client.sendPhoto(chatId, data, mimeType, caption),
+        sendVoice: (chatId, data, mimeType, caption) =>
+          client.sendVoice(chatId, data, mimeType, caption),
         sendTyping: (chatId) => client.sendTyping(chatId),
       });
     }

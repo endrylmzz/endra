@@ -17,6 +17,12 @@ export interface HandleUpdateDeps {
     mimeType: string,
     caption?: string,
   ) => Promise<void>;
+  sendVoice: (
+    chatId: number,
+    base64Data: string,
+    mimeType: string,
+    caption?: string,
+  ) => Promise<void>;
   sendTyping: (chatId: number) => Promise<void>;
 }
 
@@ -59,10 +65,20 @@ export async function handleUpdate(update: TelegramUpdate, deps: HandleUpdateDep
     });
 
     const imageAttachment = reply.attachments?.find((a) => a.type === "image");
+    const audioAttachment = reply.attachments?.find((a) => a.type === "audio");
+
     if (imageAttachment) {
       await deps.sendPhoto(chatId, imageAttachment.data, imageAttachment.mimeType, reply.message);
-    } else {
+    } else if (!audioAttachment) {
       await deps.sendMessage(chatId, reply.message);
+    }
+    if (audioAttachment) {
+      await deps.sendVoice(
+        chatId,
+        audioAttachment.data,
+        audioAttachment.mimeType,
+        imageAttachment ? undefined : reply.message,
+      );
     }
   } catch (err) {
     console.error("Failed to handle Telegram message:", err);
