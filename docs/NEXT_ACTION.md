@@ -3,17 +3,52 @@
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal) and reminders
 (`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
-confirmed working in production. `MEMORY-008`, `TOOLS-005`, `TOOLS-007`
-closed (already done under earlier work, just unmarked). `TELEGRAM-002`
-(n8n Telegram trigger) explored and explicitly **skipped** for now -
-see below.
+confirmed working in production. `VOICE-003`/`VOICE-004`
+(text-to-speech replies) are built and tested locally against the real
+OpenAI API - **not yet deployed**, see below. `MEMORY-008`,
+`TOOLS-005`, `TOOLS-007` closed (already done under earlier work, just
+unmarked). `TELEGRAM-002` (n8n Telegram trigger) explored and
+explicitly **skipped** for now - see below.
 
 Goal:
-Decide what's next - `npm run next` suggests `TOOLS-001` (Weather,
+Deploy the TTS feature, verify once via a real voice message, then
+decide what's next - `npm run next` suggests `TOOLS-001` (Weather,
 needs an API key), but there's also key-free work left:
 `PROACTIVE-002`/`PROACTIVE-003`/`PROACTIVE-005` (recurring reminders,
-condition-based monitors, dedup/cooldown) and `VOICE-003`/`VOICE-004`
-(text-to-speech replies - no new key, OpenAI's already configured).
+condition-based monitors, dedup/cooldown).
+
+## Current state - text-to-speech replies (VOICE-003, VOICE-004)
+
+- `apps/core/src/media/speech.ts` (new) - `synthesizeSpeech()`, OpenAI
+  `gpt-4o-mini-tts`, `response_format: "opus"` (Telegram voice notes
+  need OGG/Opus - this skips any transcoding step entirely). Voice and
+  model are overridable via `OPENAI_TTS_VOICE`/`OPENAI_TTS_MODEL`, both
+  optional.
+- `apps/core/src/services/message-service.ts` - tracks whether this
+  turn's input included a voice attachment (`hadVoiceInput`); if so,
+  every text reply this turn (including confirmation prompts) also
+  gets synthesized and attached as an `audio` attachment. Mirrors the
+  input's modality - no new user-facing setting. On any TTS failure,
+  logs and falls back to text-only rather than breaking the reply.
+- `apps/telegram-adapter/src/telegram-api.ts` - new `sendVoice()`
+  (multipart upload, mirrors `sendPhoto()`).
+- `apps/telegram-adapter/src/handle-update.ts` - sends a voice note
+  when the reply carries an audio attachment; if both an image and
+  audio attachment are present (e.g. a voice request to draw
+  something), sends both - caption goes on the photo only, not
+  duplicated onto the voice note.
+- Verified live against the real OpenAI API (not mocks): a real
+  `gpt-4o-mini-tts` call returned valid OGG/Opus bytes (magic number
+  checked). 161 tests total, all passing (6 new). Clean build, clean
+  lint, clean Prettier format.
+
+### Not yet deployed
+
+Sitting on `main`, not yet on the VPS. No new env vars or secrets
+needed - reuses the existing `OPENAI_API_KEY`. To go live: RepoCloud
+dashboard -> `endra-core` project -> "Resume Chat" -> pull latest,
+rebuild, restart both services. Then verify with a real Telegram voice
+message and confirm the reply comes back as a voice note.
 
 ## Current state - reminders (TOOLS-006, PROACTIVE-001, PROACTIVE-004)
 

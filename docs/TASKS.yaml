@@ -535,7 +535,7 @@ tasks:
   - id: VOICE-003
     title: Text-to-speech integration
     phase: 7
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - VOICE-002
@@ -543,7 +543,7 @@ tasks:
   - id: VOICE-004
     title: Voice response delivery back to Telegram
     phase: 7
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - VOICE-003

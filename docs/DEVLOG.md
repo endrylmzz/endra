@@ -4,6 +4,52 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-18
+
+Completed:
+
+- VOICE-003 Text-to-speech integration
+- VOICE-004 Voice response delivery back to Telegram
+
+Changed:
+
+- `apps/core/src/media/speech.ts` (new) - `synthesizeSpeech()` via
+  OpenAI `gpt-4o-mini-tts`, requesting `response_format: "opus"`
+  directly - Telegram voice notes need OGG/Opus, so this avoids any
+  transcoding step. Mirrors `transcription.ts`'s structure (own file,
+  own OpenAI client, same DI pattern).
+- `apps/core/src/services/message-service.ts` - now tracks
+  `hadVoiceInput` alongside the existing attachment-processing loop.
+  When true, every text reply produced this turn (the main reply, the
+  confirmation-ask reply, and the approve/reject `replyNaturally` reply)
+  is also synthesized to speech and attached as an `audio` attachment -
+  mirrors the turn's input modality rather than adding a new setting.
+  A TTS failure is logged and falls back to text-only rather than
+  breaking the reply.
+- `apps/telegram-adapter/src/telegram-api.ts` - new `sendVoice()`,
+  mirrors `sendPhoto()`'s multipart upload.
+- `apps/telegram-adapter/src/handle-update.ts` - sends a voice note
+  when the reply carries an audio attachment. When both an image and
+  an audio attachment are present in the same reply (e.g. a voice
+  request to draw something), sends both messages - the caption goes
+  on the photo only, not duplicated onto the voice note.
+
+Verified live against the real OpenAI API (not mocks): called
+`synthesizeSpeech()` for real and checked the result decodes to a
+valid OGG container (`OggS` magic bytes) of a plausible size.
+
+161 tests total, all passing (6 new: `speech.test.ts`, three new cases
+in `message-service.test.ts` covering voice-in/voice-out, TTS-failure
+fallback, and no-synthesis-on-text-input, plus two new cases in
+`handle-update.test.ts` for the voice-note-out and both-image-and-audio
+paths). Clean build, clean lint, clean Prettier format across all 5
+workspaces.
+
+Not yet deployed - needs a RepoCloud rebuild/restart of both services.
+No new env vars or secrets required.
+
+---
+
 ## 2026-09-15 (2)
 
 Completed:
