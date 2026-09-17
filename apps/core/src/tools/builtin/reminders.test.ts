@@ -56,6 +56,56 @@ describe("createSetReminderTool", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("stores recurrenceSeconds when given, for a repeating reminder", async () => {
+    const insertCalls: unknown[] = [];
+    const client = {
+      from: () => ({
+        insert: (values: unknown) => {
+          insertCalls.push(values);
+          return {
+            select: () => ({ single: async () => ({ data: { id: "job-1" }, error: null }) }),
+          };
+        },
+      }),
+    } as unknown as SupabaseClient;
+    const tool = createSetReminderTool(client);
+
+    const result = await tool.execute(
+      { content: "su iç", dueAt: "2026-09-16T09:00:00.000Z", recurrenceSeconds: 86400 },
+      { userId: "user-1", conversationId: "conv-1" },
+    );
+
+    expect(insertCalls).toEqual([
+      {
+        user_id: "user-1",
+        conversation_id: "conv-1",
+        content: "su iç",
+        due_at: "2026-09-16T09:00:00.000Z",
+        recurrence_seconds: 86400,
+      },
+    ]);
+    expect(result).toEqual({
+      success: true,
+      data: {
+        id: "job-1",
+        content: "su iç",
+        dueAt: "2026-09-16T09:00:00.000Z",
+        recurrenceSeconds: 86400,
+      },
+    });
+  });
+
+  it("rejects a non-positive recurrenceSeconds without touching the database", async () => {
+    const tool = createSetReminderTool({} as SupabaseClient);
+
+    const result = await tool.execute(
+      { content: "x", dueAt: "2026-09-16T09:00:00.000Z", recurrenceSeconds: 0 },
+      { userId: "user-1", conversationId: "conv-1" },
+    );
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("createListRemindersTool", () => {

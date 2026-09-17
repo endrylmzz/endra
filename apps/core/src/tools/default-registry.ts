@@ -15,6 +15,11 @@ import {
   createListRemindersTool,
   createCancelReminderTool,
 } from "./builtin/reminders.js";
+import {
+  createSetPriceAlertTool,
+  createListPriceAlertsTool,
+  createCancelPriceAlertTool,
+} from "./builtin/price-alerts.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -30,6 +35,9 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createSetReminderTool());
     registry.register(createListRemindersTool());
     registry.register(createCancelReminderTool());
+    registry.register(createSetPriceAlertTool());
+    registry.register(createListPriceAlertsTool());
+    registry.register(createCancelPriceAlertTool());
   }
   return registry;
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { checkAndDeliverDueJobs, findDueReminders, markReminderStatus } from "./scheduler.js";
+import {
+  checkAndDeliverDueJobs,
+  findDueReminders,
+  markReminderStatus,
+  rescheduleReminder,
+} from "./scheduler.js";
 
 describe("findDueReminders", () => {
   it("maps due, pending jobs joined with their conversation's channel/external id", async () => {
@@ -13,6 +18,8 @@ describe("findDueReminders", () => {
                 {
                   id: "job-1",
                   content: "sütü al",
+                  due_at: "2026-09-16T09:00:00.000Z",
+                  recurrence_seconds: null,
                   conversations: { channel: "telegram", external_conversation_id: "42" },
                 },
               ],
@@ -26,7 +33,14 @@ describe("findDueReminders", () => {
     const result = await findDueReminders(client);
 
     expect(result).toEqual([
-      { id: "job-1", content: "sütü al", channel: "telegram", externalConversationId: "42" },
+      {
+        id: "job-1",
+        content: "sütü al",
+        dueAt: "2026-09-16T09:00:00.000Z",
+        recurrenceSeconds: null,
+        channel: "telegram",
+        externalConversationId: "42",
+      },
     ]);
   });
 });
@@ -51,24 +65,46 @@ describe("markReminderStatus", () => {
   });
 });
 
+describe("rescheduleReminder", () => {
+  it("sets the next due_at and resets status to pending", async () => {
+    const eqCalls: unknown[] = [];
+    const client = {
+      from: () => ({
+        update: (values: unknown) => ({
+          eq: (column: string, value: unknown) => {
+            eqCalls.push([values, column, value]);
+            return { error: null };
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    await rescheduleReminder("job-1", "2026-09-17T09:00:00.000Z", client);
+
+    expect(eqCalls).toEqual([
+      [{ due_at: "2026-09-17T09:00:00.000Z", status: "pending" }, "id", "job-1"],
+    ]);
+  });
+});
+
+function dueRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "job-1",
+    content: "sütü al",
+    due_at: "2026-09-16T09:00:00.000Z",
+    recurrence_seconds: null,
+    conversations: { channel: "telegram", external_conversation_id: "42" },
+    ...overrides,
+  };
+}
+
 describe("checkAndDeliverDueJobs", () => {
-  it("delivers each due telegram reminder and marks it sent", async () => {
+  it("delivers a one-shot reminder and marks it sent", async () => {
     const updates: unknown[] = [];
     const client = {
       from: () => ({
         select: () => ({
-          eq: () => ({
-            lte: async () => ({
-              data: [
-                {
-                  id: "job-1",
-                  content: "sütü al",
-                  conversations: { channel: "telegram", external_conversation_id: "42" },
-                },
-              ],
-              error: null,
-            }),
-          }),
+          eq: () => ({ lte: async () => ({ data: [dueRow()], error: null }) }),
         }),
         update: (values: unknown) => ({
           eq: (column: string, value: unknown) => {
@@ -86,6 +122,39 @@ describe("checkAndDeliverDueJobs", () => {
     expect(updates).toEqual([{ values: { status: "sent" }, column: "id", value: "job-1" }]);
   });
 
+  it("reschedules a recurring reminder to due_at + interval instead of marking it sent", async () => {
+    const updates: unknown[] = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            lte: async () => ({
+              data: [dueRow({ due_at: "2026-09-16T09:00:00.000Z", recurrence_seconds: 86400 })],
+              error: null,
+            }),
+          }),
+        }),
+        update: (values: unknown) => ({
+          eq: (column: string, value: unknown) => {
+            updates.push({ values, column, value });
+            return { error: null };
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    const deliver = vi.fn().mockResolvedValue(undefined);
+
+    await checkAndDeliverDueJobs(client, deliver);
+
+    expect(updates).toEqual([
+      {
+        values: { due_at: "2026-09-17T09:00:00.000Z", status: "pending" },
+        column: "id",
+        value: "job-1",
+      },
+    ]);
+  });
+
   it("marks a job failed when delivery throws, without stopping other jobs", async () => {
     const updates: unknown[] = [];
     const client = {
@@ -94,16 +163,16 @@ describe("checkAndDeliverDueJobs", () => {
           eq: () => ({
             lte: async () => ({
               data: [
-                {
+                dueRow({
                   id: "job-1",
                   content: "a",
                   conversations: { channel: "telegram", external_conversation_id: "1" },
-                },
-                {
+                }),
+                dueRow({
                   id: "job-2",
                   content: "b",
                   conversations: { channel: "telegram", external_conversation_id: "2" },
-                },
+                }),
               ],
               error: null,
             }),
@@ -137,13 +206,7 @@ describe("checkAndDeliverDueJobs", () => {
         select: () => ({
           eq: () => ({
             lte: async () => ({
-              data: [
-                {
-                  id: "job-1",
-                  content: "x",
-                  conversations: { channel: "web", external_conversation_id: "1" },
-                },
-              ],
+              data: [dueRow({ conversations: { channel: "web", external_conversation_id: "1" } })],
               error: null,
             }),
           }),
