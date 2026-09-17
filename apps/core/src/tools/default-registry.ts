@@ -10,6 +10,8 @@ import { calculatorTool } from "./builtin/calculator.js";
 import { createNotesTool, createListNotesTool, createDeleteNoteTool } from "./builtin/notes.js";
 import { createGenerateImageTool } from "./builtin/generate-image.js";
 import { cryptoPriceTool } from "./builtin/crypto-price.js";
+import { weatherTool } from "./builtin/weather.js";
+import { wikipediaSearchTool } from "./builtin/wikipedia-search.js";
 import {
   createSetReminderTool,
   createListRemindersTool,
@@ -32,6 +34,8 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createDeleteNoteTool());
     registry.register(createGenerateImageTool());
     registry.register(cryptoPriceTool);
+    registry.register(weatherTool);
+    registry.register(wikipediaSearchTool);
     registry.register(createSetReminderTool());
     registry.register(createListRemindersTool());
     registry.register(createCancelReminderTool());
