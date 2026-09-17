@@ -44,17 +44,13 @@ Currently Working:
 (none)
 
 Blocked:
-None. **Not yet deployed** - this is a real production-behavior change
-(new scheduler running in Core, new endpoint on the adapter). Needs a
-RepoCloud rebuild + restart of both services, plus setting
-`ENDRA_INTERNAL_SECRET`/`TELEGRAM_PUSH_URL`/`TELEGRAM_PUSH_PORT` in
-each service's production environment (see `docs/NEXT_ACTION.md`).
+None. Deployed and confirmed working in production 2026-09-17.
 
 Next:
-Verify the reminder flow once live via a real Telegram message ("5
-dakika sonra şunu hatırlat"), then decide what's next - a key-requiring
-tool (weather, web search, calendar, Gmail - `TOOLS-001` suggested), or
-something else.
+Decide what's next - a key-requiring tool (weather, web search,
+calendar, Gmail - `TOOLS-001` suggested by `npm run next`), or more
+key-free work (recurring reminders/condition monitors, or
+text-to-speech replies). See `docs/NEXT_ACTION.md`.
 
 Last Updated:
-2026-09-15
+2026-09-17

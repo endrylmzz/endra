@@ -1,20 +1,19 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. `TOOLARCH-009` (multimodal input + image generation +
-key-free tools) is deployed and verified live in production (see
-DEVLOG 2026-09-15). Reminders (`TOOLS-006`, `PROACTIVE-001`,
-`PROACTIVE-004`) are built and tested locally against the real
-Supabase DB - **not yet deployed**, see below. `MEMORY-008`,
-`TOOLS-005`, `TOOLS-007` closed (already done under earlier work, just
-unmarked). `TELEGRAM-002` (n8n Telegram trigger) explored and
-explicitly **skipped** for now - see below.
+None in progress. `TOOLARCH-009` (multimodal) and reminders
+(`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
+confirmed working in production. `MEMORY-008`, `TOOLS-005`, `TOOLS-007`
+closed (already done under earlier work, just unmarked). `TELEGRAM-002`
+(n8n Telegram trigger) explored and explicitly **skipped** for now -
+see below.
 
 Goal:
-Deploy the reminders feature, verify once via a real Telegram message,
-then decide which key-requiring tool to build next (weather, web
-search, calendar, Gmail - Phase 5, `TOOLS-001` suggested by
-`npm run next`).
+Decide what's next - `npm run next` suggests `TOOLS-001` (Weather,
+needs an API key), but there's also key-free work left:
+`PROACTIVE-002`/`PROACTIVE-003`/`PROACTIVE-005` (recurring reminders,
+condition-based monitors, dedup/cooldown) and `VOICE-003`/`VOICE-004`
+(text-to-speech replies - no new key, OpenAI's already configured).
 
 ## Current state - reminders (TOOLS-006, PROACTIVE-001, PROACTIVE-004)
 
@@ -58,16 +57,11 @@ search, calendar, Gmail - Phase 5, `TOOLS-001` suggested by
 - 155 tests total, all passing (20 new). Clean build, clean lint,
   clean Prettier format across all 5 workspaces.
 
-### Not yet deployed
+### Deployed
 
-Sitting on `main`, not yet on the VPS. To go live: RepoCloud dashboard
--> `endra-core` project -> "Resume Chat" -> ask the agent to pull
-latest, rebuild, restart both services, **and set
-`ENDRA_INTERNAL_SECRET`, `TELEGRAM_PUSH_URL`, `TELEGRAM_PUSH_PORT` in
-each service's environment** (copy the real secret value from local
-`.env` - never commit it). Then verify with a real Telegram message:
-ask for a reminder a minute or two out and confirm it actually arrives
-unprompted.
+Confirmed by Ender 2026-09-17: rebuilt on RepoCloud, env vars
+(`ENDRA_INTERNAL_SECRET`, `TELEGRAM_PUSH_URL`, `TELEGRAM_PUSH_PORT`) set
+on both services, reminders working in production.
 
 ## TELEGRAM-002 (n8n) - explored, skipped for now
 
