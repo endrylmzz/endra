@@ -38,12 +38,16 @@ need OAuth from Ender when picked up.
   Brave Search, Google Custom Search, or Bing, whenever that's picked
   up). Left `TOOLS-002` `pending` rather than marking it done, since it
   doesn't fully satisfy what a "web research tool" implies.
-- Verified live against both real APIs (not mocks): a real Open-Meteo
-  call for Istanbul returned sensible current-weather data; a real
-  Wikipedia search+summary call for "Mustafa Kemal Atatürk" returned a
-  real biographical extract.
-- 186 tests total, all passing (9 new). Clean build, clean lint, clean
-  Prettier format.
+- `apps/core/src/tools/builtin/currency-conversion.ts` (new, not tied
+  to a task id - a natural companion to `get_crypto_price`) -
+  `convert_currency`: fiat-to-fiat conversion via Frankfurter's free
+  ECB reference rates (no key).
+- Verified live against all three real APIs (not mocks): a real
+  Open-Meteo call for Istanbul, a real Wikipedia search+summary call
+  for "Mustafa Kemal Atatürk", and a real Frankfurter USD->TRY
+  conversion.
+- 190 tests total, all passing (13 new). Clean build, clean lint,
+  clean Prettier format.
 
 ## Current state - recurring reminders + price alerts (PROACTIVE-002/003/005)
 

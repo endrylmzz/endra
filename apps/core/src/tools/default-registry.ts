@@ -12,6 +12,7 @@ import { createGenerateImageTool } from "./builtin/generate-image.js";
 import { cryptoPriceTool } from "./builtin/crypto-price.js";
 import { weatherTool } from "./builtin/weather.js";
 import { wikipediaSearchTool } from "./builtin/wikipedia-search.js";
+import { currencyConversionTool } from "./builtin/currency-conversion.js";
 import {
   createSetReminderTool,
   createListRemindersTool,
@@ -36,6 +37,7 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(cryptoPriceTool);
     registry.register(weatherTool);
     registry.register(wikipediaSearchTool);
+    registry.register(currencyConversionTool);
     registry.register(createSetReminderTool());
     registry.register(createListRemindersTool());
     registry.register(createCancelReminderTool());

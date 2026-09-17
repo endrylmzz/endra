@@ -37,6 +37,16 @@ format across all 5 workspaces.
 Not yet deployed, by Ender's request - continuing to add features
 before the next deploy. No new env vars or secrets needed.
 
+Also added (not on the roadmap under its own task id, a natural
+companion to `get_crypto_price`):
+
+- `apps/core/src/tools/builtin/currency-conversion.ts` (new) -
+  `convert_currency`, fiat-to-fiat conversion via Frankfurter's free
+  ECB reference rates (no API key). `get_crypto_price` only covers
+  cryptocurrencies; this fills the fiat gap (e.g. "100 dolar kaç TL").
+  Verified live against the real API. 4 new tests (190 total after
+  this addition).
+
 ---
 
 ## 2026-09-18 (2)

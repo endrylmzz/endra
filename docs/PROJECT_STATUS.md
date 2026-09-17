@@ -21,8 +21,10 @@ API key - so `TOOLS-002` stays open.
 
 Verified live against both real APIs (not mocks): a real Open-Meteo
 call for Istanbul, and a real Wikipedia search+summary call for
-"Mustafa Kemal Atatürk". 186/186 tests, clean build, clean lint, clean
-format.
+"Mustafa Kemal Atatürk". Also added `convert_currency` (Frankfurter's
+free ECB rates, no key) as a fiat-conversion companion to
+`get_crypto_price`, verified live against the real API too. 190/190
+tests, clean build, clean lint, clean format.
 
 Before that, in the same session: recurring reminders and price alerts
 (`PROACTIVE-002/003/005`) and text-to-speech replies
