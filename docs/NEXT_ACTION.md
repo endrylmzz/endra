@@ -3,18 +3,47 @@
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal) and reminders
 (`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
-confirmed working in production. `VOICE-003`/`VOICE-004`
-(text-to-speech) and `PROACTIVE-002`/`PROACTIVE-003`/`PROACTIVE-005`
-(recurring reminders + price alerts) are built, tested, and verified
-live against real Supabase/OpenAI/CoinGecko - **not yet deployed**,
-see below. `MEMORY-008`, `TOOLS-005`, `TOOLS-007` closed (already done
-under earlier work, just unmarked). `TELEGRAM-002` (n8n Telegram
+confirmed working in production. Three more feature batches are built,
+tested, and verified live, but **not yet deployed** (Ender wants a few
+more updates first) - see the "Current state" sections below, newest
+first: weather + Wikipedia search, recurring reminders + price alerts,
+text-to-speech. `MEMORY-008`, `TOOLS-005`, `TOOLS-007` closed (already
+done under earlier work, just unmarked). `TELEGRAM-002` (n8n Telegram
 trigger) explored and explicitly **skipped** for now - see below.
 
 Goal:
-Deploy both pending features, verify live, then decide what's next -
-`npm run next` suggests `TOOLS-001` (Weather, needs an API key). Almost
-all key-free roadmap work is done at this point.
+Ender asked to keep adding features before deploying anything. Once
+ready to deploy: one RepoCloud rebuild covers all three pending
+batches at once - no new env vars/secrets for any of them. After that,
+`npm run next` suggests `TOOLS-002` (Web research - partially covered
+already, see below); `TOOLS-003`/`TOOLS-004` (calendar, Gmail) still
+need OAuth from Ender when picked up.
+
+## Current state - weather + Wikipedia search (TOOLS-001, partial TOOLS-002)
+
+- `apps/core/src/tools/builtin/weather.ts` (new) - `get_weather`: geo
+  codes a city name via Open-Meteo's free geocoding API, then fetches
+  current temperature/humidity/wind/condition from Open-Meteo's free
+  forecast API. **No API key at all** - Open-Meteo is free for
+  non-commercial use, unlike most weather providers (OpenWeatherMap,
+  WeatherAPI, etc. all require a key). WMO weather codes are mapped to
+  short Turkish descriptions via a fixed lookup table.
+- `apps/core/src/tools/builtin/wikipedia-search.ts` (new) -
+  `search_wikipedia`: searches Turkish Wikipedia then fetches the top
+  result's summary, both via Wikipedia's free REST API (no key). This
+  is a **partial** stand-in for `TOOLS-002` - good for static,
+  encyclopedic "kim/nedir/ne zaman" questions, not current events or
+  general web search (no key-free general search API exists, so real
+  `TOOLS-002` still needs Ender to get a paid search API key -
+  Brave Search, Google Custom Search, or Bing, whenever that's picked
+  up). Left `TOOLS-002` `pending` rather than marking it done, since it
+  doesn't fully satisfy what a "web research tool" implies.
+- Verified live against both real APIs (not mocks): a real Open-Meteo
+  call for Istanbul returned sensible current-weather data; a real
+  Wikipedia search+summary call for "Mustafa Kemal Atatürk" returned a
+  real biographical extract.
+- 186 tests total, all passing (9 new). Clean build, clean lint, clean
+  Prettier format.
 
 ## Current state - recurring reminders + price alerts (PROACTIVE-002/003/005)
 

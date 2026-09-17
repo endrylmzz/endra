@@ -4,6 +4,41 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-18 (3)
+
+Completed:
+
+- TOOLS-001 Weather tool
+
+Changed:
+
+- `apps/core/src/tools/builtin/weather.ts` (new) - `get_weather` via
+  Open-Meteo: free geocoding (city name -> lat/lon) + free forecast
+  (current temperature/humidity/wind/weather code) - **no API key**,
+  unlike essentially every other weather provider. WMO weather codes
+  mapped to short Turkish descriptions via a fixed lookup table (an
+  unmapped code falls back to a placeholder string rather than
+  crashing).
+- `apps/core/src/tools/builtin/wikipedia-search.ts` (new) -
+  `search_wikipedia`, a partial stand-in for `TOOLS-002` using
+  Wikipedia's free search + summary REST API. Deliberately not marked
+  as closing `TOOLS-002` - it only covers static encyclopedic facts,
+  not general/current-events web search, which still needs a paid
+  search API key.
+
+Verified live against both real APIs (not mocks): Open-Meteo returned
+real current weather for Istanbul; Wikipedia returned a real summary
+for "Mustafa Kemal Atatürk".
+
+186 tests total, all passing (9 new: 5 for `weather.test.ts`, 4 for
+`wikipedia-search.test.ts`). Clean build, clean lint, clean Prettier
+format across all 5 workspaces.
+
+Not yet deployed, by Ender's request - continuing to add features
+before the next deploy. No new env vars or secrets needed.
+
+---
+
 ## 2026-09-18 (2)
 
 Completed:

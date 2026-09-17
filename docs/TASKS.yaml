@@ -417,7 +417,7 @@ tasks:
   - id: TOOLS-001
     title: Weather tool
     phase: 5
-    status: pending
+    status: done
     priority: high
     depends_on:
       - TELEGRAM-008

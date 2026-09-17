@@ -1,56 +1,47 @@
 # ENDRA PROJECT STATUS
 
 Current Phase:
-Phase 3 (Tools) fully done and deployed. Phases 1, 2, 4 done. All of
-Phase 6 (Proactive) and Phase 7 (Voice) done, plus Phase 5's notes and
-crypto tools - all key-free work is now essentially finished. Only
-key-requiring tools (weather, web search, calendar, Gmail) remain
-before Phase 5 closes out.
+Phase 3 (Tools) fully done and deployed. Phases 1, 2, 4, 6, 7 all
+done. Phase 5: notes, crypto, and now weather are done; only web
+search (partially covered), calendar, and Gmail remain, and those
+genuinely need a key/OAuth.
 
 Overall Progress:
-80% (see `npm run status`, computed from `docs/TASKS.yaml`)
+81% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Reminders can now repeat, and ENDRA can watch a price for you.**
+**Weather turned out not to need a key either.** `TOOLS-001`: new
+`get_weather` tool using Open-Meteo (free geocoding + forecast, no API
+key at all - unlike most weather providers) - give it a city name, get
+back temperature/humidity/wind/condition. Also added
+`search_wikipedia`, a partial, key-free stand-in for `TOOLS-002` (web
+research): factual "kim/nedir/ne zaman" lookups via Wikipedia's free
+REST API. Not a general web search - that still needs a paid search
+API key - so `TOOLS-002` stays open.
 
-- `PROACTIVE-002` (recurring reminders): `set_reminder` takes an
-  optional `recurrenceSeconds`. On delivery, a recurring job is
-  rescheduled to `due_at + interval` (not `now + interval`, so a
-  delayed tick doesn't drift the schedule) instead of being closed out.
-- `PROACTIVE-003` (conditional monitors): `set_reminder`'s sibling for
-  a different kind of trigger - `set_price_alert` /
-  `list_price_alerts` / `cancel_price_alert`, watching a CoinGecko
-  price (still no API key) and firing once a target is crossed.
-  Weather-based conditions wait on `TOOLS-001` (needs a key).
-- `PROACTIVE-005` (dedup/cooldown): satisfied by design rather than
-  with new machinery - a triggered alert's status leaves `pending`, so
-  the next scheduler tick simply never re-checks or re-fires it.
+Verified live against both real APIs (not mocks): a real Open-Meteo
+call for Istanbul, and a real Wikipedia search+summary call for
+"Mustafa Kemal Atatürk". 186/186 tests, clean build, clean lint, clean
+format.
 
-Verified live against the real Supabase DB and a real CoinGecko call
-(not mocks): a recurring reminder delivered once and was correctly
-rescheduled to its next occurrence; a price alert set against BTC's
-real live price triggered immediately and was marked `triggered`;
-re-running the check confirmed it was not re-delivered. 177/177 tests,
-clean build, clean lint, clean format.
-
-Before that: text-to-speech replies (`VOICE-003`/`VOICE-004`) shipped
-and were verified live against the real OpenAI API - a voice message
-in now gets a voice message back, mirroring the turn's input modality.
+Before that, in the same session: recurring reminders and price alerts
+(`PROACTIVE-002/003/005`) and text-to-speech replies
+(`VOICE-003`/`VOICE-004`) - see `docs/DEVLOG.md` for details on each.
 
 Currently Working:
 (none)
 
 Blocked:
-None. **Not yet deployed** - both this and the TTS feature from
-earlier are sitting on `main`. No new secrets needed for either (the
-new tables were already pushed to the live Supabase project via
-`supabase db push`).
+None. **Three feature batches are sitting on `main`, none deployed
+yet**: TTS, recurring reminders + price alerts, and weather + Wikipedia
+search. No new secrets needed for any of them.
 
 Next:
-Deploy both pending features (TTS, recurring reminders + price
-alerts), verify live, then decide on the remaining key-requiring tools
-(weather, web search, calendar, Gmail - `TOOLS-001` suggested by
-`npm run next`). See `docs/NEXT_ACTION.md`.
+Ender wants a few more updates before deploying anything - continuing
+to look for further key-free improvements. Once ready: one RepoCloud
+rebuild covers everything sitting on `main` at once. `TOOLS-002` (full
+web search), `TOOLS-003` (calendar), `TOOLS-004` (Gmail) remain and
+need a key/OAuth from Ender when picked up.
 
 Last Updated:
 2026-09-18
