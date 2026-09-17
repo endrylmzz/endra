@@ -484,7 +484,7 @@ tasks:
   - id: PROACTIVE-002
     title: Recurring tasks
     phase: 6
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - PROACTIVE-001
@@ -492,7 +492,7 @@ tasks:
   - id: PROACTIVE-003
     title: Conditional monitors (e.g. price thresholds, weather conditions)
     phase: 6
-    status: pending
+    status: done
     priority: high
     depends_on:
       - PROACTIVE-001
@@ -508,7 +508,7 @@ tasks:
   - id: PROACTIVE-005
     title: Deduplication and cooldown logic
     phase: 6
-    status: pending
+    status: done
     priority: medium
     depends_on:
       - PROACTIVE-004

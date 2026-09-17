@@ -4,18 +4,57 @@ Continue task:
 None in progress. `TOOLARCH-009` (multimodal) and reminders
 (`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
 confirmed working in production. `VOICE-003`/`VOICE-004`
-(text-to-speech replies) are built and tested locally against the real
-OpenAI API - **not yet deployed**, see below. `MEMORY-008`,
-`TOOLS-005`, `TOOLS-007` closed (already done under earlier work, just
-unmarked). `TELEGRAM-002` (n8n Telegram trigger) explored and
-explicitly **skipped** for now - see below.
+(text-to-speech) and `PROACTIVE-002`/`PROACTIVE-003`/`PROACTIVE-005`
+(recurring reminders + price alerts) are built, tested, and verified
+live against real Supabase/OpenAI/CoinGecko - **not yet deployed**,
+see below. `MEMORY-008`, `TOOLS-005`, `TOOLS-007` closed (already done
+under earlier work, just unmarked). `TELEGRAM-002` (n8n Telegram
+trigger) explored and explicitly **skipped** for now - see below.
 
 Goal:
-Deploy the TTS feature, verify once via a real voice message, then
-decide what's next - `npm run next` suggests `TOOLS-001` (Weather,
-needs an API key), but there's also key-free work left:
-`PROACTIVE-002`/`PROACTIVE-003`/`PROACTIVE-005` (recurring reminders,
-condition-based monitors, dedup/cooldown).
+Deploy both pending features, verify live, then decide what's next -
+`npm run next` suggests `TOOLS-001` (Weather, needs an API key). Almost
+all key-free roadmap work is done at this point.
+
+## Current state - recurring reminders + price alerts (PROACTIVE-002/003/005)
+
+- New migration `20260918090000_recurring_reminders_and_price_alerts.sql`
+  (already pushed to the live Supabase project via `supabase db push`):
+  adds nullable `recurrence_seconds` to `scheduled_jobs`, and a new
+  `price_alerts` table (`coin_id`, `vs_currency`, `direction`
+  above/below, `target_price`, `status` pending/triggered/cancelled).
+- `apps/core/src/tools/builtin/reminders.ts` - `set_reminder` gained an
+  optional `recurrenceSeconds` input.
+- `apps/core/src/proactive/scheduler.ts` - `findDueReminders()` now
+  also returns `dueAt`/`recurrenceSeconds`; `checkAndDeliverDueJobs()`
+  reschedules a recurring job to `due_at + interval` (drift-free)
+  instead of marking it `sent`. New `rescheduleReminder()`.
+- `apps/core/src/proactive/price-alerts.ts` (new) - `fetchCryptoPrice()`
+  (free CoinGecko, single pair), `findPendingPriceAlerts()`,
+  `checkPriceAlerts()` (delivers and marks `triggered` once a target is
+  crossed - a triggered/cancelled alert is never re-checked, which is
+  the whole dedup/cooldown mechanism for `PROACTIVE-005`, no extra
+  machinery needed), `markPriceAlertTriggered()`.
+- `apps/core/src/tools/builtin/price-alerts.ts` (new) - `set_price_alert`
+  (write, no confirmation), `list_price_alerts` (read),
+  `cancel_price_alert` (write, requires confirmation - mirrors
+  `cancel_reminder`'s reasoning).
+- `apps/core/src/proactive/scheduler.ts`'s `startScheduler()` now runs
+  `checkPriceAlerts()` on the same 30s tick as the reminder check.
+- Verified live against the real Supabase DB and a real CoinGecko call
+  (not mocks): a recurring reminder delivered once and rescheduled
+  correctly; a price alert against BTC's real price triggered
+  immediately and was marked `triggered`; re-checking confirmed no
+  duplicate delivery. 177 tests total, all passing (22 new). Clean
+  build, clean lint, clean Prettier format.
+
+### Not yet deployed
+
+Sitting on `main`, not yet on the VPS. No new env vars or secrets
+needed. To go live: RepoCloud dashboard -> `endra-core` project ->
+"Resume Chat" -> pull latest, rebuild, restart both services. Then
+verify: ask for a recurring reminder and a price alert, confirm both
+eventually fire via a real Telegram message.
 
 ## Current state - text-to-speech replies (VOICE-003, VOICE-004)
 

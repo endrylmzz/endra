@@ -4,6 +4,63 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-18 (2)
+
+Completed:
+
+- PROACTIVE-002 Recurring tasks
+- PROACTIVE-003 Conditional monitors (price thresholds - crypto only;
+  weather waits on TOOLS-001)
+- PROACTIVE-005 Deduplication and cooldown logic
+
+Changed:
+
+- New migration `20260918090000_recurring_reminders_and_price_alerts.sql`
+  - nullable `recurrence_seconds` on `scheduled_jobs`; new
+    `price_alerts` table.
+- `apps/core/src/tools/builtin/reminders.ts` - `set_reminder` gained
+  optional `recurrenceSeconds` (e.g. 86400 for daily); validated to be
+  a positive number.
+- `apps/core/src/proactive/scheduler.ts` - `findDueReminders()` returns
+  `dueAt`/`recurrenceSeconds` too; `checkAndDeliverDueJobs()` now
+  reschedules a recurring job (`due_at + interval`, computed from the
+  job's own due_at rather than "now" so a delayed tick doesn't drift
+  the schedule) instead of marking it `sent`. New
+  `rescheduleReminder()`.
+- `apps/core/src/proactive/price-alerts.ts` (new) - the concrete,
+  key-free conditional monitor: `fetchCryptoPrice()` (free CoinGecko,
+  single coin/currency pair), `findPendingPriceAlerts()`,
+  `checkPriceAlerts()`, `markPriceAlertTriggered()`. Dedup/cooldown
+  (`PROACTIVE-005`) needed no new mechanism - a triggered or cancelled
+  alert's status simply excludes it from the next tick's query.
+- `apps/core/src/tools/builtin/price-alerts.ts` (new) -
+  `set_price_alert` (write, no confirmation - mirrors `set_reminder`'s
+  reasoning), `list_price_alerts` (read), `cancel_price_alert` (write,
+  requires confirmation - mirrors `cancel_reminder`).
+- `apps/core/src/proactive/scheduler.ts`'s `startScheduler()` runs
+  `checkPriceAlerts()` on the same 30s tick as the reminder check - one
+  scheduler, not two competing intervals.
+
+Verified live against the real Supabase DB and a real CoinGecko call
+(not mocks): set a recurring reminder due in the past, delivered it via
+`checkAndDeliverDueJobs`, and confirmed the row was rescheduled to
+exactly `due_at + 86400s` with status back to `pending` rather than
+`sent`; set a price alert with a target far below BTC's real live
+price, ran `checkPriceAlerts` and confirmed it triggered, delivered,
+and was marked `triggered`; ran the check again and confirmed zero
+further deliveries (dedup working as designed). All test rows cleaned
+up after.
+
+177 tests total, all passing (22 new: `price-alerts.test.ts` in both
+`tools/builtin/` and `proactive/`, plus new recurrence coverage in
+`reminders.test.ts` and `scheduler.test.ts`). Clean build, clean lint,
+clean Prettier format across all 5 workspaces.
+
+Not yet deployed - needs a RepoCloud rebuild/restart of both services,
+same as the pending TTS feature. No new env vars or secrets required.
+
+---
+
 ## 2026-09-18
 
 Completed:
