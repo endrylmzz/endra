@@ -31,3 +31,29 @@ export async function setPreference(
     .upsert({ user_id: userId, key, value }, { onConflict: "user_id,key" });
   if (error) throw error;
 }
+
+export interface PreferenceRecord {
+  key: string;
+  value: unknown;
+}
+
+export async function listPreferences(
+  userId: string,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<PreferenceRecord[]> {
+  const { data, error } = await client
+    .from("preferences")
+    .select("key, value")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return (data ?? []) as PreferenceRecord[];
+}
+
+export async function deletePreference(
+  userId: string,
+  key: string,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<void> {
+  const { error } = await client.from("preferences").delete().eq("user_id", userId).eq("key", key);
+  if (error) throw error;
+}

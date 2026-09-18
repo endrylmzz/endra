@@ -37,6 +37,11 @@ import {
   createDeleteCalendarEventTool,
 } from "./builtin/calendar.js";
 import { createListEmailsTool, createReadEmailTool, createSendEmailTool } from "./builtin/gmail.js";
+import {
+  createSetPreferenceTool,
+  createListPreferencesTool,
+  createDeletePreferenceTool,
+} from "./builtin/preferences.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -69,6 +74,9 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createListEmailsTool());
     registry.register(createReadEmailTool());
     registry.register(createSendEmailTool());
+    registry.register(createSetPreferenceTool());
+    registry.register(createListPreferencesTool());
+    registry.register(createDeletePreferenceTool());
     registry.register(createListCapabilitiesTool(registry));
   }
   return registry;

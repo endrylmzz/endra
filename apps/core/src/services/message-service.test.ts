@@ -61,6 +61,7 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
       calls.saveMessage.push({ conversationId, message });
     }),
     searchMemories: vi.fn(async () => []),
+    listPreferences: vi.fn(async () => []),
     extractMemoryCandidates: vi.fn(async () => []),
     promoteMemories: vi.fn(async () => {}),
     loadPersona: vi.fn(() => "You are ENDRA."),
@@ -134,6 +135,20 @@ describe("handleMessage - normal flow (no tools involved)", () => {
         tools: [
           { name: "get_current_time", description: "Returns the current time.", inputSchema: {} },
         ],
+      }),
+    );
+  });
+
+  it("appends saved preferences to the system prompt", async () => {
+    const { deps } = fakeDeps({
+      listPreferences: vi.fn(async () => [{ key: "reply_style", value: "kısa ve direkt" }]),
+    });
+
+    await handleMessage(baseRequest, deps);
+
+    expect(deps.llmProvider?.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining("reply_style: kısa ve direkt"),
       }),
     );
   });

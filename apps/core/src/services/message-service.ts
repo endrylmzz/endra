@@ -26,6 +26,7 @@ import type {
 import { resolveIdentity } from "../identity/resolve-identity.js";
 import { getRecentMessages, saveMessage } from "../memory/messages.js";
 import { searchMemories, type RankedMemory } from "../memory/semantic-memory.js";
+import { listPreferences, type PreferenceRecord } from "../memory/preferences.js";
 import { extractMemoryCandidates, promoteMemories } from "../memory/promotion.js";
 import { loadPersona } from "../persona/load-persona.js";
 import { logAgentRun } from "../observability/agent-run-log.js";
@@ -43,6 +44,7 @@ export interface MessageServiceDeps {
   getRecentMessages: typeof getRecentMessages;
   saveMessage: typeof saveMessage;
   searchMemories: typeof searchMemories;
+  listPreferences: typeof listPreferences;
   extractMemoryCandidates: typeof extractMemoryCandidates;
   promoteMemories: typeof promoteMemories;
   loadPersona: typeof loadPersona;
@@ -62,13 +64,26 @@ function getDefaultProvider(): OpenAIProvider {
   return defaultProvider;
 }
 
-function buildSystemPrompt(persona: string, memories: RankedMemory[], note?: string): string {
+function buildSystemPrompt(
+  persona: string,
+  memories: RankedMemory[],
+  preferences: PreferenceRecord[],
+  note?: string,
+): string {
   const memoryBlock =
     memories.length > 0
       ? `\n\nEnder hakkında hatırladığın bazı şeyler:\n${memories.map((m) => `- ${m.content}`).join("\n")}`
       : "";
+  const preferencesBlock =
+    preferences.length > 0
+      ? `\n\nEnder'in ayarladığı tercihler (bunlara uy):\n${preferences
+          .map(
+            (p) => `- ${p.key}: ${typeof p.value === "string" ? p.value : JSON.stringify(p.value)}`,
+          )
+          .join("\n")}`
+      : "";
   const noteBlock = note ? `\n\n${note}` : "";
-  return `${persona}${memoryBlock}${noteBlock}`;
+  return `${persona}${memoryBlock}${preferencesBlock}${noteBlock}`;
 }
 
 function isImageAttachment(value: unknown): value is EndraAttachment {
@@ -92,6 +107,7 @@ export async function handleMessage(
   const getRecentMessagesFn = deps.getRecentMessages ?? getRecentMessages;
   const saveMessageFn = deps.saveMessage ?? saveMessage;
   const searchMemoriesFn = deps.searchMemories ?? searchMemories;
+  const listPreferencesFn = deps.listPreferences ?? listPreferences;
   const extractMemoryCandidatesFn = deps.extractMemoryCandidates ?? extractMemoryCandidates;
   const promoteMemoriesFn = deps.promoteMemories ?? promoteMemories;
   const loadPersonaFn = deps.loadPersona ?? loadPersona;
@@ -111,6 +127,7 @@ export async function handleMessage(
   });
   const toolContext = { userId, conversationId };
   const history = await getRecentMessagesFn(conversationId);
+  const preferences = await listPreferencesFn(userId).catch(() => []);
 
   // A voice note becomes its transcribed text; a photo becomes vision
   // input on this turn's user message - neither changes anything else
@@ -148,7 +165,7 @@ export async function handleMessage(
 
   async function replyNaturally(note: string): Promise<EndraMessageResponseData> {
     const result = await llm.generate({
-      systemPrompt: buildSystemPrompt(loadPersonaFn(), [], note),
+      systemPrompt: buildSystemPrompt(loadPersonaFn(), [], preferences, note),
       messages: [...history, { role: "user", content: effectiveMessage }],
     });
     await saveMessageFn(conversationId, { role: "assistant", content: result.content });
@@ -197,7 +214,7 @@ export async function handleMessage(
   }
 
   const relevantMemories = await searchMemoriesFn(userId, effectiveMessage).catch(() => []);
-  const systemPrompt = buildSystemPrompt(loadPersonaFn(), relevantMemories);
+  const systemPrompt = buildSystemPrompt(loadPersonaFn(), relevantMemories, preferences);
   const toolDefs: LLMToolDefinition[] = toolRegistry.list().map((tool) => ({
     name: tool.name,
     description: tool.description,
