@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EndraTool, LLMGenerateResponse, LLMProvider } from "@endra/agent-contracts";
+import type {
+  EndraTool,
+  LLMGenerateResponse,
+  LLMMessage,
+  LLMProvider,
+} from "@endra/agent-contracts";
 import { ToolRegistry } from "../tools/registry.js";
 import type { ToolRouter, ToolRouteResult } from "../tools/router.js";
 import { handleMessage, type MessageServiceDeps } from "./message-service.js";
@@ -271,6 +276,60 @@ describe("handleMessage - tool calling", () => {
     // No natural final answer was produced for the original request -
     // nothing meaningful to consider for memory promotion this turn.
     expect(deps.extractMemoryCandidates).not.toHaveBeenCalled();
+  });
+
+  it("keeps an already-executed tool's result available to the model when another call in the same turn needs confirmation", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValueOnce({
+        content: "",
+        model: "fake-model",
+        usage: { inputTokens: 5, outputTokens: 2 },
+        toolCalls: [
+          { id: "call_1", name: "get_current_time", arguments: {} },
+          { id: "call_2", name: "notes", arguments: { content: "sütü al" } },
+        ],
+      })
+      .mockResolvedValueOnce({
+        content: "Şu an saat 12:00, bir de süt almanı not almak istiyorum, onaylıyor musun?",
+        model: "fake-model",
+        usage: { inputTokens: 6, outputTokens: 4 },
+      });
+    const llmProvider: LLMProvider = { name: "fake-provider", generate };
+    const route = vi.fn(async (call: { name: string }): Promise<ToolRouteResult> =>
+      call.name === "get_current_time"
+        ? { type: "executed", result: { success: true, data: "12:00" } }
+        : { type: "pending_confirmation", approvalId: "approval-1" },
+    );
+    const registry = new ToolRegistry();
+    registry.register(fakeTool());
+    registry.register(fakeTool({ name: "notes", description: "Bir not kaydeder" }));
+    const { deps } = fakeDeps({
+      llmProvider,
+      toolRegistry: registry,
+      toolRouter: fakeToolRouter({ route }),
+    });
+
+    const result = await handleMessage(baseRequest, deps);
+
+    expect(result.message).toBe(
+      "Şu an saat 12:00, bir de süt almanı not almak istiyorum, onaylıyor musun?",
+    );
+    // The confirmation-ask call must still see the already-executed
+    // tool's real result, and be told to actually use it rather than
+    // only asking for the pending confirmation.
+    const confirmationAskMessages = generate.mock.calls[1][0].messages as LLMMessage[];
+    expect(confirmationAskMessages).toContainEqual(
+      expect.objectContaining({
+        role: "tool",
+        toolCallId: "call_1",
+        content: JSON.stringify({ success: true, data: "12:00" }),
+      }),
+    );
+    const confirmationInstruction = confirmationAskMessages.find(
+      (m) => m.role === "tool" && m.toolCallId === "call_2",
+    );
+    expect(confirmationInstruction?.content).toContain("başka bir tool sonucu varsa");
   });
 });
 

@@ -245,7 +245,7 @@ export async function handleMessage(
               tool: call.name,
               arguments: call.arguments,
               message:
-                "Bu işlem kullanıcının onayını gerektiriyor. Kullanıcıya doğal bir Türkçe cümleyle ne yapmak istediğini açıkla ve onay iste (evet/hayır şeklinde cevap vermesini iste). JSON gösterme.",
+                "Bu işlem kullanıcının onayını gerektiriyor. Kullanıcıya doğal bir Türkçe cümleyle ne yapmak istediğini açıkla ve onay iste (evet/hayır şeklinde cevap vermesini iste). Bu turda çalıştırılmış başka bir tool sonucu varsa (yukarıdaki mesajlarda), onu da atlamadan aynı cevaba doğal bir şekilde dahil et - sadece onay isteğiyle sınırlı kalma. JSON gösterme.",
             }),
           });
         } else if (isImageAttachment(outcome.result.data)) {
