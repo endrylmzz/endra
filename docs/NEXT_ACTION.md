@@ -3,21 +3,61 @@
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal) and reminders
 (`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
-confirmed working in production. Three more feature batches are built,
+confirmed working in production. Four more feature batches are built,
 tested, and verified live, but **not yet deployed** (Ender wants a few
 more updates first) - see the "Current state" sections below, newest
-first: weather + Wikipedia search, recurring reminders + price alerts,
+first: weather monitors + retry + multi-tool fix + list_capabilities,
+weather + Wikipedia search, recurring reminders + price alerts,
 text-to-speech. `MEMORY-008`, `TOOLS-005`, `TOOLS-007` closed (already
 done under earlier work, just unmarked). `TELEGRAM-002` (n8n Telegram
 trigger) explored and explicitly **skipped** for now - see below.
 
 Goal:
-Ender asked to keep adding features before deploying anything. Once
-ready to deploy: one RepoCloud rebuild covers all three pending
-batches at once - no new env vars/secrets for any of them. After that,
-`npm run next` suggests `TOOLS-002` (Web research - partially covered
-already, see below); `TOOLS-003`/`TOOLS-004` (calendar, Gmail) still
-need OAuth from Ender when picked up.
+Ender has explicitly deferred all key-requiring tools (`TOOLS-002` full
+web search, `TOOLS-003` calendar, `TOOLS-004` Gmail) until he's ready
+to get a key/OAuth - see the memory note
+`key_requiring_tools_deferred.md`. Don't suggest them as "next" on your
+own; key-free roadmap work is essentially exhausted, so the next
+session should either deploy what's sitting on `main` (one RepoCloud
+rebuild covers all four pending batches, no new env vars/secrets for
+any of them) or ask Ender directly what he wants next.
+
+## Current state - weather monitors, delivery retry, multi-tool fix, list_capabilities
+
+- `apps/core/src/weather/open-meteo.ts` (new) - the `get_weather` tool's
+  fetch logic (geocoding + forecast) extracted out so it's shared
+  rather than duplicated. Also exports `isPrecipitating()`.
+- `apps/core/src/tools/builtin/weather-alerts.ts` +
+  `apps/core/src/proactive/weather-alerts.ts` (new) -
+  `set_weather_alert`/`list_weather_alerts`/`cancel_weather_alert`,
+  mirroring `price-alerts.ts` exactly. Two kinds: `temperature`
+  (direction + target °C) and `precipitation` (rain/snow/storm
+  starting). Completes `PROACTIVE-003`. New migration
+  `20260919090000_weather_alerts.sql`, already pushed live.
+- `apps/core/src/proactive/scheduler.ts` - added `retry_count` handling
+  (new migration `20260919093000_reminder_retry_count.sql`, already
+  pushed live): a failed reminder delivery gets up to 3 more attempts
+  across scheduler ticks before being marked `failed`, instead of
+  giving up on the first transient failure. Also now runs
+  `checkWeatherAlerts()` each tick.
+- `apps/core/src/services/message-service.ts` - the pending-confirmation
+  instruction now explicitly tells the model to also mention any other
+  tool result already computed in the same turn, fixing a known gap
+  (see old NEXT_ACTION text, now resolved) where that result was
+  present in context but not reliably surfaced.
+- `apps/core/src/tools/builtin/list-capabilities.ts` (new) -
+  `list_capabilities` reads the tool registry itself so "neler
+  yapabiliyorsun" stays accurate as tools are added.
+- Verified live against real APIs/DB for all four pieces (not mocks) -
+  see `docs/DEVLOG.md` (2026-09-19) for exact test transcripts. 215
+  tests total, all passing (30 new). Clean build, clean lint, clean
+  Prettier format.
+
+### Not yet deployed
+
+Sitting on `main`, not yet on the VPS. No new env vars or secrets
+needed. To go live: RepoCloud dashboard -> `endra-core` project ->
+"Resume Chat" -> pull latest, rebuild, restart both services.
 
 ## Current state - weather + Wikipedia search (TOOLS-001, partial TOOLS-002)
 

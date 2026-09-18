@@ -4,6 +4,77 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-19
+
+Ender asked for a round of key-free improvements before the next
+deploy, picking all of: weather-based conditional monitors, reminder
+delivery retry, the multi-tool-call confirmation gap, plus one more of
+my choosing. All four shipped, tested, and verified live.
+
+Completed:
+
+- PROACTIVE-003 (fully) - weather-based conditional monitors, alongside
+  the already-shipped price alerts.
+
+Changed:
+
+- `apps/core/src/weather/open-meteo.ts` (new) - extracted the Open-Meteo
+  fetch logic (geocoding + forecast) out of the `get_weather` tool so
+  it's shared with the new monitor instead of duplicated. Also exports
+  `isPrecipitating()` (a fixed WMO-code set) for the new precipitation
+  alert kind.
+- `apps/core/src/tools/builtin/weather-alerts.ts` (new) -
+  `set_weather_alert` / `list_weather_alerts` / `cancel_weather_alert`.
+  Two kinds only: `temperature` (direction + target °C) and
+  `precipitation` (fires once rain/snow/a storm starts) - not a generic
+  condition-expression engine.
+- `apps/core/src/proactive/weather-alerts.ts` (new) - mirrors
+  `price-alerts.ts`'s structure and dedup-by-status approach exactly.
+- New migration `20260919090000_weather_alerts.sql`, pushed to the live
+  Supabase project.
+- `apps/core/src/proactive/scheduler.ts` - `startScheduler()` now also
+  runs `checkWeatherAlerts()` each tick.
+
+- **Reminder delivery retry** (a gap ADR-007 explicitly left open). New
+  migration `20260919093000_reminder_retry_count.sql` adds
+  `retry_count` to `scheduled_jobs`. A failed delivery now gets up to 3
+  more attempts (the scheduler's own 30s tick doubles as the backoff)
+  before being marked permanently `failed`, instead of giving up
+  immediately. Resets to 0 on each successful recurring occurrence.
+
+- **Multi-tool-call confirmation fix**. When one turn calls multiple
+  tools and one needs confirmation, the already-executed tool's result
+  was computed and kept in context, but the confirmation-ask
+  instruction never told the model to actually mention it - a known v1
+  gap. The instruction now explicitly asks the model to weave in any
+  other tool result from the same turn. The safety guarantee is
+  unchanged - only what the model is told to say changed, not how
+  `ToolRouter.confirm()` executes anything.
+
+- **`list_capabilities` tool** (new, not tied to a task id) - reads the
+  tool registry itself so ENDRA can answer "neler yapabiliyorsun"
+  accurately without the answer going stale as tools are added. With
+  ~20 tools now registered, self-discovery earns its place.
+
+Verified live against real APIs/DB (not mocks) for all four:
+a temperature alert against Istanbul's real weather triggered and
+didn't re-fire; a reminder set to always fail delivery climbed through
+retry_count 0->1->2->3 across real scheduler ticks before being marked
+failed; a real "saat kaç, bir de not al" message produced one reply
+surfacing both the time and the confirmation question together; a real
+"neler yapabiliyorsun" message got back an accurate, natural-language
+capability summary.
+
+215 tests total, all passing (30 new across the four pieces). Clean
+build, clean lint, clean Prettier format across all 5 workspaces.
+
+Not yet deployed, by Ender's request - this is the fourth pending
+feature batch sitting on `main` (after TTS, recurring reminders + price
+alerts, and weather/Wikipedia/currency). No new env vars or secrets
+needed for any of it.
+
+---
+
 ## 2026-09-18 (3)
 
 Completed:
