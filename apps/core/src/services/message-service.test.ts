@@ -62,6 +62,7 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
     }),
     searchMemories: vi.fn(async () => []),
     listPreferences: vi.fn(async () => []),
+    listOpenDecisions: vi.fn(async () => []),
     extractMemoryCandidates: vi.fn(async () => []),
     promoteMemories: vi.fn(async () => {}),
     loadPersona: vi.fn(() => "You are ENDRA."),
@@ -149,6 +150,24 @@ describe("handleMessage - normal flow (no tools involved)", () => {
     expect(deps.llmProvider?.generate).toHaveBeenCalledWith(
       expect.objectContaining({
         systemPrompt: expect.stringContaining("reply_style: kısa ve direkt"),
+      }),
+    );
+  });
+
+  it("appends open decisions (with their id) to the system prompt", async () => {
+    const { deps } = fakeDeps({
+      listOpenDecisions: vi.fn(async () => [
+        { id: "dec-1", decision: "Yeni işe başlamak", reasoning: "Daha iyi maaş" },
+      ]),
+    });
+
+    await handleMessage(baseRequest, deps);
+
+    expect(deps.llmProvider?.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining(
+          "[id: dec-1] Yeni işe başlamak (sebep: Daha iyi maaş)",
+        ),
       }),
     );
   });

@@ -38,6 +38,11 @@ import {
 } from "./builtin/calendar.js";
 import { createListEmailsTool, createReadEmailTool, createSendEmailTool } from "./builtin/gmail.js";
 import {
+  createLogDecisionTool,
+  createListDecisionsTool,
+  createResolveDecisionTool,
+} from "./builtin/decisions.js";
+import {
   createSetPreferenceTool,
   createListPreferencesTool,
   createDeletePreferenceTool,
@@ -77,6 +82,9 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createSetPreferenceTool());
     registry.register(createListPreferencesTool());
     registry.register(createDeletePreferenceTool());
+    registry.register(createLogDecisionTool());
+    registry.register(createListDecisionsTool());
+    registry.register(createResolveDecisionTool());
     registry.register(createListCapabilitiesTool(registry));
   }
   return registry;
