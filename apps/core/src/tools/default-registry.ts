@@ -31,6 +31,12 @@ import {
 import { createListCapabilitiesTool } from "./builtin/list-capabilities.js";
 import { createWebSearchTool } from "./builtin/web-search.js";
 import { createRunCodeTool } from "./builtin/run-code.js";
+import {
+  createListCalendarEventsTool,
+  createCreateCalendarEventTool,
+  createDeleteCalendarEventTool,
+} from "./builtin/calendar.js";
+import { createListEmailsTool, createReadEmailTool, createSendEmailTool } from "./builtin/gmail.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -57,6 +63,12 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createCancelPriceAlertTool());
     registry.register(createWebSearchTool());
     registry.register(createRunCodeTool());
+    registry.register(createListCalendarEventsTool());
+    registry.register(createCreateCalendarEventTool());
+    registry.register(createDeleteCalendarEventTool());
+    registry.register(createListEmailsTool());
+    registry.register(createReadEmailTool());
+    registry.register(createSendEmailTool());
     registry.register(createListCapabilitiesTool(registry));
   }
   return registry;
