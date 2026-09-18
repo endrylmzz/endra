@@ -45,20 +45,18 @@ Currently Working:
 (none)
 
 Blocked:
-None. **Six feature batches are sitting on `main`, none deployed yet**:
-TTS, recurring reminders + price alerts, weather/Wikipedia/currency,
-the retry/multi-tool-fix/capabilities round, web_search/run_code, and
-this Calendar/Gmail round. The last one needs new secrets on the VPS
-(`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN`) -
-everything else reuses what's already configured there.
+None. **All six feature batches from this session are now deployed and
+confirmed working in production** - Ender confirmed `/health` OK on
+2026-09-19 after the RepoCloud rebuild that included the new
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN` env
+vars.
 
 Next:
-Every tool-shaped roadmap item is now done. Deploy what's sitting on
-`main` (remembering the new Google env vars this time), and verify the
-new tools via a real Telegram message. After that, further work is
-either Phase 8/9 (currently out of scope) or whatever Ender wants next
-
-- ask him directly rather than assuming. See `docs/NEXT_ACTION.md`.
+Every tool-shaped roadmap item is done. Only Phase 8/9 (Web, Desktop)
+remain, both explicitly out of scope for now. Verify the new
+Calendar/Gmail tools via a real Telegram message if not done already,
+then ask Ender directly what he wants next - there's no more obvious
+backlog item. See `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-19

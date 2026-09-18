@@ -77,6 +77,14 @@ This closes out Phase 5 entirely and, with it, every tool-shaped item
 on the original roadmap. Only Phase 8 (Web/PWA) and Phase 9 (Desktop)
 remain, both explicitly out of scope for now (CLAUDE.md section 14).
 
+Deployed and confirmed: Ender pasted a prepared instruction (git pull,
+set the three new `GOOGLE_*` env vars on `endra-core`, rebuild, run
+tests, restart both services, check `/health`) into the RepoCloud
+DevOps AI Agent chat. Confirmed `/health` OK - this covers all six
+feature batches from this session (TTS, recurring reminders + price
+alerts, weather/Wikipedia/currency, retry/multi-tool-fix/capabilities,
+web_search/run_code, and Calendar/Gmail), not just this last one.
+
 ---
 
 ## 2026-09-19 (2)
