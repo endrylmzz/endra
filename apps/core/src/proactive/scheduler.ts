@@ -14,6 +14,7 @@ export interface DueReminder {
   content: string;
   dueAt: string;
   recurrenceSeconds: number | null;
+  retryCount: number;
   channel: string;
   externalConversationId: string;
 }
@@ -23,6 +24,7 @@ interface DueReminderRow {
   content: string;
   due_at: string;
   recurrence_seconds: number | null;
+  retry_count: number;
   conversations: { channel: string; external_conversation_id: string };
 }
 
@@ -32,7 +34,7 @@ export async function findDueReminders(
   const { data, error } = await client
     .from("scheduled_jobs")
     .select(
-      "id, content, due_at, recurrence_seconds, conversations!inner(channel, external_conversation_id)",
+      "id, content, due_at, recurrence_seconds, retry_count, conversations!inner(channel, external_conversation_id)",
     )
     .eq("status", "pending")
     .lte("due_at", new Date().toISOString());
@@ -43,6 +45,7 @@ export async function findDueReminders(
     content: row.content,
     dueAt: row.due_at,
     recurrenceSeconds: row.recurrence_seconds,
+    retryCount: row.retry_count,
     channel: row.conversations.channel,
     externalConversationId: row.conversations.external_conversation_id,
   }));
@@ -59,7 +62,8 @@ export async function markReminderStatus(
 
 // PROACTIVE-002: advance a recurring reminder to its next occurrence
 // instead of marking it sent - due_at + interval, not now + interval,
-// so a delayed tick doesn't drift the schedule.
+// so a delayed tick doesn't drift the schedule. Resets retry_count -
+// each new occurrence gets its own fresh retry budget.
 export async function rescheduleReminder(
   id: string,
   nextDueAt: string,
@@ -67,10 +71,27 @@ export async function rescheduleReminder(
 ): Promise<void> {
   const { error } = await client
     .from("scheduled_jobs")
-    .update({ due_at: nextDueAt, status: "pending" })
+    .update({ due_at: nextDueAt, status: "pending", retry_count: 0 })
     .eq("id", id);
   if (error) throw error;
 }
+
+// A failed delivery gets a few more spaced-out attempts (this
+// scheduler's own tick interval doubles as the retry backoff) before
+// being given up on for good.
+export async function incrementRetryCount(
+  id: string,
+  retryCount: number,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<void> {
+  const { error } = await client
+    .from("scheduled_jobs")
+    .update({ retry_count: retryCount })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+const MAX_DELIVERY_RETRIES = 3;
 
 export async function checkAndDeliverDueJobs(
   client: SupabaseClient = getSupabaseClient(),
@@ -95,7 +116,11 @@ export async function checkAndDeliverDueJobs(
       }
     } catch (err) {
       console.error("Failed to deliver reminder", job.id, err);
-      await markReminderStatus(job.id, "failed", client).catch(() => {});
+      if (job.retryCount < MAX_DELIVERY_RETRIES) {
+        await incrementRetryCount(job.id, job.retryCount + 1, client).catch(() => {});
+      } else {
+        await markReminderStatus(job.id, "failed", client).catch(() => {});
+      }
     }
   }
 }
