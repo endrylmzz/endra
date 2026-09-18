@@ -9,6 +9,7 @@ import { deliverToTelegram } from "./deliver-telegram.js";
 import { checkPriceAlerts } from "./price-alerts.js";
 import { checkWeatherAlerts } from "./weather-alerts.js";
 import { checkMemoryHygiene } from "./memory-hygiene.js";
+import { checkMorningDigest } from "./morning-digest.js";
 
 export interface DueReminder {
   id: string;
@@ -143,6 +144,9 @@ export function startScheduler(
     });
     checkMemoryHygiene().catch((err: unknown) => {
       console.error("Memory hygiene check failed:", err);
+    });
+    checkMorningDigest().catch((err: unknown) => {
+      console.error("Morning digest check failed:", err);
     });
   }, intervalMs);
 }
