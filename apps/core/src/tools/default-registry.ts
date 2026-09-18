@@ -14,6 +14,11 @@ import { weatherTool } from "./builtin/weather.js";
 import { wikipediaSearchTool } from "./builtin/wikipedia-search.js";
 import { currencyConversionTool } from "./builtin/currency-conversion.js";
 import {
+  createSetWeatherAlertTool,
+  createListWeatherAlertsTool,
+  createCancelWeatherAlertTool,
+} from "./builtin/weather-alerts.js";
+import {
   createSetReminderTool,
   createListRemindersTool,
   createCancelReminderTool,
@@ -38,6 +43,9 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(weatherTool);
     registry.register(wikipediaSearchTool);
     registry.register(currencyConversionTool);
+    registry.register(createSetWeatherAlertTool());
+    registry.register(createListWeatherAlertsTool());
+    registry.register(createCancelWeatherAlertTool());
     registry.register(createSetReminderTool());
     registry.register(createListRemindersTool());
     registry.register(createCancelReminderTool());

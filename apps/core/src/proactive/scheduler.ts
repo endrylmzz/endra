@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
 import { checkPriceAlerts } from "./price-alerts.js";
+import { checkWeatherAlerts } from "./weather-alerts.js";
 
 export interface DueReminder {
   id: string;
@@ -110,6 +111,9 @@ export function startScheduler(
     });
     checkPriceAlerts().catch((err: unknown) => {
       console.error("Price alert check failed:", err);
+    });
+    checkWeatherAlerts().catch((err: unknown) => {
+      console.error("Weather alert check failed:", err);
     });
   }, intervalMs);
 }
