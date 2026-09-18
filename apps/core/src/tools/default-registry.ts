@@ -37,6 +37,7 @@ import {
   createDeleteCalendarEventTool,
 } from "./builtin/calendar.js";
 import { createListEmailsTool, createReadEmailTool, createSendEmailTool } from "./builtin/gmail.js";
+import { createListMemoriesTool, createDeleteMemoryTool } from "./builtin/memories.js";
 import {
   createLogDecisionTool,
   createListDecisionsTool,
@@ -85,6 +86,8 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createLogDecisionTool());
     registry.register(createListDecisionsTool());
     registry.register(createResolveDecisionTool());
+    registry.register(createListMemoriesTool());
+    registry.register(createDeleteMemoryTool());
     registry.register(createListCapabilitiesTool(registry));
   }
   return registry;

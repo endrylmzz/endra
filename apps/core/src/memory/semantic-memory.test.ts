@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { saveMemory, searchMemories } from "./semantic-memory.js";
+import { deleteMemory, listMemories, saveMemory, searchMemories } from "./semantic-memory.js";
 
 const fakeEmbed = vi.fn(async () => [0.1, 0.2, 0.3]);
 
@@ -53,5 +53,77 @@ describe("searchMemories", () => {
     } as unknown as SupabaseClient;
 
     await expect(searchMemories("user-1", "q", 5, client, fakeEmbed)).rejects.toThrow("rpc failed");
+  });
+});
+
+describe("listMemories", () => {
+  it("returns the user's memories, newest first", async () => {
+    const eqCalls: unknown[] = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: (column: string, value: unknown) => {
+            eqCalls.push([column, value]);
+            return {
+              order: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: "mem-1",
+                      content: "eski bir hatıra",
+                      type: "semantic",
+                      importance: 0.3,
+                      created_at: "2026-01-01T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            };
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    const result = await listMemories("user-1", 20, client);
+
+    expect(eqCalls).toEqual([["user_id", "user-1"]]);
+    expect(result).toEqual([
+      {
+        id: "mem-1",
+        content: "eski bir hatıra",
+        type: "semantic",
+        importance: 0.3,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+  });
+});
+
+describe("deleteMemory", () => {
+  it("deletes only the calling user's memory with the given id", async () => {
+    const eqCalls: unknown[] = [];
+    const client = {
+      from: () => ({
+        delete: () => ({
+          eq: (column: string, value: unknown) => {
+            eqCalls.push([column, value]);
+            return {
+              eq: (column2: string, value2: unknown) => {
+                eqCalls.push([column2, value2]);
+                return { error: null };
+              },
+            };
+          },
+        }),
+      }),
+    } as unknown as SupabaseClient;
+
+    await deleteMemory("user-1", "mem-1", client);
+
+    expect(eqCalls).toEqual([
+      ["id", "mem-1"],
+      ["user_id", "user-1"],
+    ]);
   });
 });

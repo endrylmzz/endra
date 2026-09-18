@@ -65,6 +65,53 @@ export async function findSimilarMemory(
   return (data as { id: string; similarity: number }[] | null)?.[0];
 }
 
+export interface StoredMemory {
+  id: string;
+  content: string;
+  type: MemoryType;
+  importance: number;
+  createdAt: string;
+}
+
+/** Most recent memories, newest first - browsing/hygiene, not similarity search. */
+export async function listMemories(
+  userId: string,
+  limit = 20,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<StoredMemory[]> {
+  const { data, error } = await client
+    .from("memories")
+    .select("id, content, type, importance, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (
+    (data ?? []) as {
+      id: string;
+      content: string;
+      type: MemoryType;
+      importance: number;
+      created_at: string;
+    }[]
+  ).map((m) => ({
+    id: m.id,
+    content: m.content,
+    type: m.type,
+    importance: m.importance,
+    createdAt: m.created_at,
+  }));
+}
+
+export async function deleteMemory(
+  userId: string,
+  memoryId: string,
+  client: SupabaseClient = getSupabaseClient(),
+): Promise<void> {
+  const { error } = await client.from("memories").delete().eq("id", memoryId).eq("user_id", userId);
+  if (error) throw error;
+}
+
 export async function searchMemories(
   userId: string,
   query: string,

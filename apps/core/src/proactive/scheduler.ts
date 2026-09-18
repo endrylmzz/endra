@@ -8,6 +8,7 @@ import { getSupabaseClient } from "../db/supabase-client.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
 import { checkPriceAlerts } from "./price-alerts.js";
 import { checkWeatherAlerts } from "./weather-alerts.js";
+import { checkMemoryHygiene } from "./memory-hygiene.js";
 
 export interface DueReminder {
   id: string;
@@ -139,6 +140,9 @@ export function startScheduler(
     });
     checkWeatherAlerts().catch((err: unknown) => {
       console.error("Weather alert check failed:", err);
+    });
+    checkMemoryHygiene().catch((err: unknown) => {
+      console.error("Memory hygiene check failed:", err);
     });
   }, intervalMs);
 }
