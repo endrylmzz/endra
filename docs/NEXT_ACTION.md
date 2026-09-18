@@ -3,24 +3,59 @@
 Continue task:
 None in progress. `TOOLARCH-009` (multimodal) and reminders
 (`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
-confirmed working in production. Four more feature batches are built,
+confirmed working in production. Five more feature batches are built,
 tested, and verified live, but **not yet deployed** (Ender wants a few
 more updates first) - see the "Current state" sections below, newest
-first: weather monitors + retry + multi-tool fix + list_capabilities,
-weather + Wikipedia search, recurring reminders + price alerts,
-text-to-speech. `MEMORY-008`, `TOOLS-005`, `TOOLS-007` closed (already
-done under earlier work, just unmarked). `TELEGRAM-002` (n8n Telegram
-trigger) explored and explicitly **skipped** for now - see below.
+first: web_search + run_code (OpenAI-hosted), weather monitors + retry
+
+- multi-tool fix + list_capabilities, weather + Wikipedia search,
+  recurring reminders + price alerts, text-to-speech. `MEMORY-008`,
+  `TOOLS-005`, `TOOLS-007`, `TOOLS-002` closed (`TOOLS-002` for real this
+  time - see below). `TELEGRAM-002` (n8n Telegram trigger) explored and
+  explicitly **skipped** for now - see below.
 
 Goal:
-Ender has explicitly deferred all key-requiring tools (`TOOLS-002` full
-web search, `TOOLS-003` calendar, `TOOLS-004` Gmail) until he's ready
-to get a key/OAuth - see the memory note
+Ender has deferred `TOOLS-003` (calendar) and `TOOLS-004` (Gmail) until
+he's ready to set up Google OAuth - see the memory note
 `key_requiring_tools_deferred.md`. Don't suggest them as "next" on your
-own; key-free roadmap work is essentially exhausted, so the next
-session should either deploy what's sitting on `main` (one RepoCloud
-rebuild covers all four pending batches, no new env vars/secrets for
-any of them) or ask Ender directly what he wants next.
+own. Key-free (and now OpenAI-hosted-tool) roadmap work is essentially
+exhausted, so the next session should either deploy what's sitting on
+`main` (one RepoCloud rebuild covers all five pending batches, no new
+env vars/secrets for any of them) or ask Ender directly what he wants
+next.
+
+## Current state - web_search + run_code (closes TOOLS-002 for real)
+
+Ender asked whether OpenAI itself could cover web search instead of
+needing a separate paid search key. Verified live: yes.
+
+- `apps/core/src/tools/builtin/web-search.ts` (new) - `web_search`,
+  wraps OpenAI's Responses API hosted `web_search` tool
+  (`client.responses.create({ tools: [{ type: "web_search" }], input:
+query })`) - bills through the already-configured `OPENAI_API_KEY`,
+  no separate search provider/key needed. Real, current, cited results
+  - this is what `search_wikipedia` (static facts only) couldn't do.
+    **Corrects the earlier assumption** (see the memory note
+    `key_requiring_tools_deferred.md`, now updated) that `TOOLS-002`
+    needed a paid search API key.
+- `apps/core/src/tools/builtin/run-code.ts` (new) - `run_code`, wraps
+  the hosted `code_interpreter` tool (`tools: [{ type:
+"code_interpreter", container: { type: "auto" } }]`) - real sandboxed
+  Python execution for anything beyond the `calculator` tool's basic
+  arithmetic (real math, data analysis, verifying a result). Also
+  no new key.
+- Both follow the same pattern as `generate-image.ts`
+  (`createXTool(client: OpenAI = getDefaultClient())`, injectable for
+  tests) - the main chat pipeline stays on the Chat Completions API
+  (`openai-provider.ts`); these tools each make their own separate
+  Responses API call internally, so no change to the core provider
+  architecture was needed.
+- Verified live end-to-end through the actual message pipeline (not
+  isolated mocks): a real "bugün gündemde ne var" question got a real,
+  cited news answer; a real "1-50 arası asal sayıların toplamı" request
+  got the correct answer (328) from real executed Python.
+- 221 tests total, all passing (6 new). Clean build, clean lint, clean
+  Prettier format.
 
 ## Current state - weather monitors, delivery retry, multi-tool fix, list_capabilities
 

@@ -425,7 +425,7 @@ tasks:
   - id: TOOLS-002
     title: Web research tool
     phase: 5
-    status: pending
+    status: done
     priority: high
     depends_on:
       - TOOLS-001

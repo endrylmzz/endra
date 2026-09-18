@@ -4,6 +4,51 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-19 (2)
+
+Ender asked: can we use OpenAI itself for things like web search
+instead of getting a separate search API key - what else can we get
+from OpenAI directly? Tested both live before answering.
+
+Completed:
+
+- TOOLS-002 Web research tool (for real this time - `search_wikipedia`
+  from earlier was only a partial stand-in, correctly left `pending`)
+
+Changed:
+
+- `apps/core/src/tools/builtin/web-search.ts` (new) - `web_search`
+  wraps OpenAI's Responses API hosted `web_search` tool. Bills through
+  the already-configured `OPENAI_API_KEY` - **no separate search
+  provider/key needed**, correcting the assumption recorded in the
+  `key_requiring_tools_deferred.md` memory note (now updated). Real,
+  current, cited results.
+- `apps/core/src/tools/builtin/run-code.ts` (new) - `run_code` wraps
+  the hosted `code_interpreter` tool - real sandboxed Python execution
+  for anything beyond the `calculator` tool's basic arithmetic. Also
+  no new key.
+- Both follow `generate-image.ts`'s pattern
+  (`createXTool(client: OpenAI = getDefaultClient())`); the main chat
+  pipeline (`openai-provider.ts`) stays on the Chat Completions API
+  unchanged - each tool makes its own separate Responses API call
+  internally when invoked, so no core provider architecture change was
+  needed for this.
+
+Verified live, twice: first in isolation (`client.responses.create`
+directly, confirming the API shape and that no new key is required),
+then end-to-end through the actual message pipeline (not mocks) - a
+real "bugün gündemde ne var" question returned a real, cited news
+answer; a real "1-50 arası asal sayıların toplamı" request returned the
+correct answer (328) from real executed Python.
+
+221 tests total, all passing (6 new). Clean build, clean lint, clean
+Prettier format across all 5 workspaces.
+
+Not yet deployed, by Ender's request. No new env vars or secrets
+needed - reuses `OPENAI_API_KEY`.
+
+---
+
 ## 2026-09-19
 
 Ender asked for a round of key-free improvements before the next
