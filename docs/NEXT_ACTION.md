@@ -1,28 +1,79 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. `TOOLARCH-009` (multimodal) and reminders
-(`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are both deployed and
-confirmed working in production. Five more feature batches are built,
-tested, and verified live, but **not yet deployed** (Ender wants a few
-more updates first) - see the "Current state" sections below, newest
-first: web_search + run_code (OpenAI-hosted), weather monitors + retry
-
-- multi-tool fix + list_capabilities, weather + Wikipedia search,
-  recurring reminders + price alerts, text-to-speech. `MEMORY-008`,
-  `TOOLS-005`, `TOOLS-007`, `TOOLS-002` closed (`TOOLS-002` for real this
-  time - see below). `TELEGRAM-002` (n8n Telegram trigger) explored and
-  explicitly **skipped** for now - see below.
+None in progress. **All of Phase 5 is now done** - `TOOLS-003`
+(Calendar) and `TOOLS-004` (Gmail) closed with real Google OAuth (see
+below and `ADR-008`). `TOOLARCH-009` (multimodal) and reminders
+(`TOOLS-006`, `PROACTIVE-001`, `PROACTIVE-004`) are deployed and
+confirmed working in production. Six feature batches are built, tested,
+and verified live, but **not yet deployed** (Ender wants a few more
+updates first) - see the "Current state" sections below, newest first:
+Calendar + Gmail (Google OAuth), web_search + run_code (OpenAI-hosted),
+weather monitors + retry + multi-tool fix + list_capabilities, weather +
+Wikipedia search, recurring reminders + price alerts, text-to-speech.
+`MEMORY-008`, `TOOLS-005`, `TOOLS-007`, `TOOLS-002` closed earlier (see
+DEVLOG). `TELEGRAM-002` (n8n Telegram trigger) explored and explicitly
+**skipped** for now - see below.
 
 Goal:
-Ender has deferred `TOOLS-003` (calendar) and `TOOLS-004` (Gmail) until
-he's ready to set up Google OAuth - see the memory note
-`key_requiring_tools_deferred.md`. Don't suggest them as "next" on your
-own. Key-free (and now OpenAI-hosted-tool) roadmap work is essentially
-exhausted, so the next session should either deploy what's sitting on
-`main` (one RepoCloud rebuild covers all five pending batches, no new
-env vars/secrets for any of them) or ask Ender directly what he wants
-next.
+Every tool-shaped roadmap item is done. Only Phase 8 (Web/PWA) and
+Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
+section 14 - don't start those without Ender explicitly asking. Next
+session should deploy what's sitting on `main` (one RepoCloud rebuild
+covers all six pending batches - **this time there ARE new secrets
+needed**: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN`,
+copy the real values from local `.env`) or ask Ender directly what he
+wants next.
+
+## Current state - Calendar + Gmail via Google OAuth (TOOLS-003/004, ADR-008)
+
+Ender asked to set up Google OAuth for Calendar/Gmail. Walked him
+through Google Cloud Console step by step (project, OAuth consent
+screen with `gmail.readonly`/`gmail.send`/`calendar` scopes, Desktop-app
+OAuth client) since that part requires his own Google login - I can't
+do it on his behalf.
+
+- `scripts/google-oauth-setup.mjs` (new) - one-time interactive script:
+  prints the consent URL, Ender approves in his own browser, the
+  script catches the loopback redirect (`127.0.0.1:45678/callback`),
+  exchanges the code for a refresh token, writes it into `.env`. Ran
+  once already - `GOOGLE_REFRESH_TOKEN` is live in local `.env`.
+- `apps/core/src/google/oauth-client.ts` (new) - `getGoogleAccessToken()`
+  mints access tokens from the refresh token, cached until shortly
+  before expiry.
+- `apps/core/src/tools/builtin/calendar.ts` (new) -
+  `list_calendar_events` (read), `create_calendar_event` (write,
+  requires confirmation - a real calendar entry, unlike a private
+  reminder), `delete_calendar_event` (write, requires confirmation).
+- `apps/core/src/tools/builtin/gmail.ts` (new) - `list_emails` /
+  `read_email` (both read), `send_email` (`riskLevel: "critical"`,
+  always requires confirmation - CLAUDE.md section 6's named example).
+  MIME parsing (recursively finds the `text/plain` part) and building
+  (RFC 2047-encodes non-ASCII header values) both hand-rolled - no new
+  dependency, matches every other integration here.
+- All four raw-REST, no `googleapis` dependency (see `ADR-008`).
+- Verified live against the real Google account (not mocks): listed
+  the real calendar, created+verified+deleted a real test event; listed
+  real inbox messages and read one's real body; sent a real test email
+  to Ender's own address and read it back. **Found and fixed a real
+  bug this way**: the first live send had a mangled Subject line (raw
+  UTF-8 in an email header needs RFC 2047 encoding - the body doesn't,
+  it's covered by the `Content-Type` charset instead) - fixed, then
+  re-verified live with a Turkish-character subject.
+- 242 tests total, all passing (21 new). Clean build, clean lint, clean
+  Prettier format.
+
+### Not yet deployed
+
+Sitting on `main`, not yet on the VPS. **Needs new secrets this time**:
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` -
+copy the real values from local `.env` into both services' production
+environment (not just Core - actually only Core calls Google's APIs,
+so `endra-core`'s environment is the only one that needs them). To go
+live: RepoCloud dashboard -> `endra-core` project -> "Resume Chat" ->
+set the new env vars, pull latest, rebuild, restart. Then verify via a
+real Telegram message: ask about upcoming calendar events, ask it to
+read a recent email.
 
 ## Current state - web_search + run_code (closes TOOLS-002 for real)
 

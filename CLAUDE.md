@@ -44,7 +44,7 @@ Ayrıntılı mimari, komponent sorumlulukları ve repository layout için:
 **`docs/ARCHITECTURE.md`**.
 
 Kalıcı mimari kararlar (neden n8n, neden Supabase, neden Telegram önce,
-neden Core ayrı bir servis) için: **`docs/decisions/`** (ADR-001..006).
+neden Core ayrı bir servis) için: **`docs/decisions/`** (ADR-001..008).
 Kabul edilmiş (Accepted) bir ADR sebepsiz değiştirilmez — değişiklik
 gerekiyorsa yeni bir ADR açılır, eskisi silinmez.
 

@@ -4,6 +4,81 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-19 (3)
+
+Ender asked to set up Google OAuth for Gmail/Calendar and wanted a
+step-by-step walkthrough. Guided him through Google Cloud Console
+(project, OAuth consent screen with the three scopes, Desktop-app
+OAuth client) - that part needs his own Google login, can't be
+automated. Hit one real snag along the way: the first authorization
+attempt got a 403 `access_denied` because the test-user addition
+hadn't actually saved; he fixed it and re-ran on his own.
+
+New architecture decision:
+
+- ADR-008 - Google OAuth via a Desktop-app loopback flow
+  (`http://127.0.0.1:<port>/callback`), done once via a local script
+  Ender runs himself. Raw REST calls to Calendar/Gmail (no `googleapis`
+  dependency), matching every other external integration in this
+  codebase.
+
+Completed:
+
+- TOOLS-003 Calendar tool
+- TOOLS-004 Gmail tool
+
+Changed:
+
+- `scripts/google-oauth-setup.mjs` (new) - one-time interactive setup:
+  prints the consent URL, catches the loopback redirect, exchanges the
+  code for a refresh token, writes it into `.env`. Ran once already.
+- `apps/core/src/google/oauth-client.ts` (new) - `getGoogleAccessToken()`,
+  mints and caches access tokens from the refresh token.
+- `apps/core/src/tools/builtin/calendar.ts` (new) -
+  `list_calendar_events` (read), `create_calendar_event` (write,
+  requires confirmation), `delete_calendar_event` (write, requires
+  confirmation).
+- `apps/core/src/tools/builtin/gmail.ts` (new) - `list_emails` /
+  `read_email` (read), `send_email` (`riskLevel: "critical"`, always
+  requires confirmation - CLAUDE.md section 6's named example of a
+  critical action). Hand-rolled MIME parsing (recursive `text/plain`
+  part search) and building (RFC 2047 header encoding).
+- `.env`/`.env.example` gained `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+  `GOOGLE_REFRESH_TOKEN`.
+
+Verified live against Ender's real Google account (not mocks, with his
+explicit go-ahead for the one action - sending a real email - that
+needed it): listed the real calendar (empty), created a test event,
+confirmed it appeared in the list, deleted it; listed real inbox
+messages (including one from an unrelated other project) and read one
+message's real decoded body; sent a real test email to Ender's own
+address and read it back to confirm delivery.
+
+**Found and fixed a real bug via that live test**: the first real send
+came back with a mangled Subject line
+(`ENDRA canlÃ„Â± test` instead of `ENDRA canlı test`) - raw non-ASCII
+bytes in an email header need RFC 2047 encoded-words; the body doesn't
+have this problem since its encoding is declared via the `Content-Type`
+charset instead. Fixed with an `encodeHeaderValue()` helper, added a
+test asserting the Subject line round-trips through RFC 2047 correctly,
+then re-verified live with a Turkish-character subject - came back
+correct.
+
+242 tests total, all passing (21 new: `oauth-client.test.ts`,
+`calendar.test.ts`, `gmail.test.ts`). Clean build, clean lint, clean
+Prettier format across all 5 workspaces.
+
+Not yet deployed, by Ender's request. **Unlike every other pending
+batch this session, this one needs new secrets on the VPS** -
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN` - not
+just a rebuild.
+
+This closes out Phase 5 entirely and, with it, every tool-shaped item
+on the original roadmap. Only Phase 8 (Web/PWA) and Phase 9 (Desktop)
+remain, both explicitly out of scope for now (CLAUDE.md section 14).
+
+---
+
 ## 2026-09-19 (2)
 
 Ender asked: can we use OpenAI itself for things like web search
