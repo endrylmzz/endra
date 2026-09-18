@@ -28,6 +28,7 @@ import {
   createListPriceAlertsTool,
   createCancelPriceAlertTool,
 } from "./builtin/price-alerts.js";
+import { createListCapabilitiesTool } from "./builtin/list-capabilities.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -52,6 +53,7 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createSetPriceAlertTool());
     registry.register(createListPriceAlertsTool());
     registry.register(createCancelPriceAlertTool());
+    registry.register(createListCapabilitiesTool(registry));
   }
   return registry;
 }
