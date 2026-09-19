@@ -62,6 +62,7 @@ function fakeDeps(overrides: Partial<MessageServiceDeps> = {}): {
     }),
     searchMemories: vi.fn(async () => []),
     listPreferences: vi.fn(async () => []),
+    deletePreference: vi.fn(async () => {}),
     listOpenDecisions: vi.fn(async () => []),
     extractMemoryCandidates: vi.fn(async () => []),
     promoteMemories: vi.fn(async () => {}),
@@ -170,6 +171,46 @@ describe("handleMessage - normal flow (no tools involved)", () => {
         ),
       }),
     );
+  });
+
+  it("appends a pending memory-connection insight to the system prompt, then clears it (one-shot)", async () => {
+    const { deps } = fakeDeps({
+      listPreferences: vi.fn(async () => [
+        { key: "pending_memory_insights", value: ["Geçen ay bahsettiğinle şimdiki bağlantılı."] },
+      ]),
+    });
+
+    await handleMessage(baseRequest, deps);
+
+    expect(deps.llmProvider?.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        systemPrompt: expect.stringContaining("Geçen ay bahsettiğinle şimdiki bağlantılı."),
+      }),
+    );
+    expect(deps.deletePreference).toHaveBeenCalledWith("user-1", "pending_memory_insights");
+  });
+
+  it("does not touch the memory-insights preference when there isn't one pending", async () => {
+    const { deps } = fakeDeps();
+
+    await handleMessage(baseRequest, deps);
+
+    expect(deps.deletePreference).not.toHaveBeenCalled();
+  });
+
+  it("does not list the memory-insights key as a regular preference", async () => {
+    const { deps } = fakeDeps({
+      listPreferences: vi.fn(async () => [
+        { key: "pending_memory_insights", value: ["gizli iç not"] },
+        { key: "reply_style", value: "kısa" },
+      ]),
+    });
+
+    await handleMessage(baseRequest, deps);
+
+    const systemPrompt = (deps.llmProvider?.generate as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      .systemPrompt as string;
+    expect(systemPrompt).not.toContain("pending_memory_insights:");
   });
 
   it("appends relevant long-term memories to the system prompt when found", async () => {

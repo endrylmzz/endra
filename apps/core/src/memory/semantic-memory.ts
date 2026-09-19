@@ -65,6 +65,32 @@ export async function findSimilarMemory(
   return (data as { id: string; similarity: number }[] | null)?.[0];
 }
 
+export interface RelatedMemory {
+  id: string;
+  content: string;
+  type: MemoryType;
+  similarity: number;
+}
+
+/** MEMORY-008: related-but-not-duplicate memories, for proactively
+ * volunteering a connection/contradiction after a new memory is saved. */
+export async function findRelatedMemories(
+  userId: string,
+  content: string,
+  excludeId: string,
+  client: SupabaseClient = getSupabaseClient(),
+  embed: typeof embedText = embedText,
+): Promise<RelatedMemory[]> {
+  const embedding = await embed(content);
+  const { data, error } = await client.rpc("find_related_memories", {
+    p_user_id: userId,
+    p_embedding: embedding,
+    p_exclude_id: excludeId,
+  });
+  if (error) throw error;
+  return (data ?? []) as RelatedMemory[];
+}
+
 export interface StoredMemory {
   id: string;
   content: string;

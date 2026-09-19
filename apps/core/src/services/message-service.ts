@@ -26,7 +26,7 @@ import type {
 import { resolveIdentity } from "../identity/resolve-identity.js";
 import { getRecentMessages, saveMessage } from "../memory/messages.js";
 import { searchMemories, type RankedMemory } from "../memory/semantic-memory.js";
-import { listPreferences, type PreferenceRecord } from "../memory/preferences.js";
+import { listPreferences, deletePreference, type PreferenceRecord } from "../memory/preferences.js";
 import { listOpenDecisions, type OpenDecision } from "../tools/builtin/decisions.js";
 import { extractMemoryCandidates, promoteMemories } from "../memory/promotion.js";
 import { loadPersona } from "../persona/load-persona.js";
@@ -46,6 +46,7 @@ export interface MessageServiceDeps {
   saveMessage: typeof saveMessage;
   searchMemories: typeof searchMemories;
   listPreferences: typeof listPreferences;
+  deletePreference: typeof deletePreference;
   listOpenDecisions: typeof listOpenDecisions;
   extractMemoryCandidates: typeof extractMemoryCandidates;
   promoteMemories: typeof promoteMemories;
@@ -66,11 +67,14 @@ function getDefaultProvider(): OpenAIProvider {
   return defaultProvider;
 }
 
+const PENDING_INSIGHTS_KEY = "pending_memory_insights";
+
 function buildSystemPrompt(
   persona: string,
   memories: RankedMemory[],
   preferences: PreferenceRecord[],
   openDecisions: OpenDecision[],
+  memoryInsights: string[] = [],
   note?: string,
 ): string {
   const memoryBlock =
@@ -93,8 +97,16 @@ function buildSystemPrompt(
           )
           .join("\n")}`
       : "";
+  const insightsBlock =
+    memoryInsights.length > 0
+      ? `\n\nİçsel not (kullanıcıya değil sana): hafızalarını tazelerken şunları fark ettin:\n${memoryInsights
+          .map((i) => `- ${i}`)
+          .join(
+            "\n",
+          )}\n\nUygun bir an gelirse, konuşma akışını zorlamadan doğal bir şekilde bundan bahsedebilirsin - ama bu turda mutlaka söylemek zorunda değilsin.`
+      : "";
   const noteBlock = note ? `\n\n${note}` : "";
-  return `${persona}${memoryBlock}${preferencesBlock}${decisionsBlock}${noteBlock}`;
+  return `${persona}${memoryBlock}${preferencesBlock}${decisionsBlock}${insightsBlock}${noteBlock}`;
 }
 
 function isImageAttachment(value: unknown): value is EndraAttachment {
@@ -119,6 +131,7 @@ export async function handleMessage(
   const saveMessageFn = deps.saveMessage ?? saveMessage;
   const searchMemoriesFn = deps.searchMemories ?? searchMemories;
   const listPreferencesFn = deps.listPreferences ?? listPreferences;
+  const deletePreferenceFn = deps.deletePreference ?? deletePreference;
   const listOpenDecisionsFn = deps.listOpenDecisions ?? listOpenDecisions;
   const extractMemoryCandidatesFn = deps.extractMemoryCandidates ?? extractMemoryCandidates;
   const promoteMemoriesFn = deps.promoteMemories ?? promoteMemories;
@@ -139,8 +152,23 @@ export async function handleMessage(
   });
   const toolContext = { userId, conversationId };
   const history = await getRecentMessagesFn(conversationId);
-  const preferences = await listPreferencesFn(userId).catch(() => []);
+  const allPreferences = await listPreferencesFn(userId).catch(() => []);
   const openDecisions = await listOpenDecisionsFn(userId).catch(() => []);
+
+  // Pending memory-connection insights (MEMORY-008) are consumed at
+  // most once - surfaced in this turn's system prompt, then cleared,
+  // rather than kept as a regular preference the model would otherwise
+  // see re-listed as if it were a setting.
+  const pendingInsightsValue = allPreferences.find((p) => p.key === PENDING_INSIGHTS_KEY)?.value;
+  const memoryInsights = Array.isArray(pendingInsightsValue)
+    ? (pendingInsightsValue as string[])
+    : [];
+  const preferences = allPreferences.filter((p) => p.key !== PENDING_INSIGHTS_KEY);
+  if (memoryInsights.length > 0) {
+    await deletePreferenceFn(userId, PENDING_INSIGHTS_KEY).catch((err: unknown) => {
+      console.error("Failed to clear pending memory insights:", err);
+    });
+  }
 
   // A voice note becomes its transcribed text; a photo becomes vision
   // input on this turn's user message - neither changes anything else
@@ -178,7 +206,14 @@ export async function handleMessage(
 
   async function replyNaturally(note: string): Promise<EndraMessageResponseData> {
     const result = await llm.generate({
-      systemPrompt: buildSystemPrompt(loadPersonaFn(), [], preferences, openDecisions, note),
+      systemPrompt: buildSystemPrompt(
+        loadPersonaFn(),
+        [],
+        preferences,
+        openDecisions,
+        memoryInsights,
+        note,
+      ),
       messages: [...history, { role: "user", content: effectiveMessage }],
     });
     await saveMessageFn(conversationId, { role: "assistant", content: result.content });
@@ -232,6 +267,7 @@ export async function handleMessage(
     relevantMemories,
     preferences,
     openDecisions,
+    memoryInsights,
   );
   const toolDefs: LLMToolDefinition[] = toolRegistry.list().map((tool) => ({
     name: tool.name,

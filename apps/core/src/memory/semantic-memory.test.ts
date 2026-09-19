@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { deleteMemory, listMemories, saveMemory, searchMemories } from "./semantic-memory.js";
+import {
+  deleteMemory,
+  findRelatedMemories,
+  listMemories,
+  saveMemory,
+  searchMemories,
+} from "./semantic-memory.js";
 
 const fakeEmbed = vi.fn(async () => [0.1, 0.2, 0.3]);
 
@@ -53,6 +59,37 @@ describe("searchMemories", () => {
     } as unknown as SupabaseClient;
 
     await expect(searchMemories("user-1", "q", 5, client, fakeEmbed)).rejects.toThrow("rpc failed");
+  });
+});
+
+describe("findRelatedMemories", () => {
+  it("embeds the content and calls the find_related_memories RPC, excluding the new memory", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [{ id: "mem-old", content: "eski bilgi", type: "semantic", similarity: 0.7 }],
+      error: null,
+    });
+    const client = { rpc } as unknown as SupabaseClient;
+
+    const result = await findRelatedMemories("user-1", "yeni bilgi", "mem-new", client, fakeEmbed);
+
+    expect(result).toEqual([
+      { id: "mem-old", content: "eski bilgi", type: "semantic", similarity: 0.7 },
+    ]);
+    expect(rpc).toHaveBeenCalledWith("find_related_memories", {
+      p_user_id: "user-1",
+      p_embedding: [0.1, 0.2, 0.3],
+      p_exclude_id: "mem-new",
+    });
+  });
+
+  it("throws on an RPC error", async () => {
+    const client = {
+      rpc: vi.fn().mockResolvedValue({ data: null, error: new Error("rpc failed") }),
+    } as unknown as SupabaseClient;
+
+    await expect(findRelatedMemories("user-1", "q", "mem-new", client, fakeEmbed)).rejects.toThrow(
+      "rpc failed",
+    );
   });
 });
 
