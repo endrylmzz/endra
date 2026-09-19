@@ -13,6 +13,7 @@ import { getPreference, setPreference } from "../memory/preferences.js";
 import { getGoogleAccessToken } from "../google/oauth-client.js";
 import { listOpenDecisions } from "../tools/builtin/decisions.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
+import { findDeliveryTarget } from "./delivery-target.js";
 
 const LAST_RUN_PREFERENCE_KEY = "morning_digest_last_run_at";
 const DIGEST_TIME_PREFERENCE_KEY = "morning_digest_time";
@@ -186,25 +187,6 @@ function composeDigest(sections: {
     blocks.push(`🗒️ Açık kararların:\n${sections.decisions.map((l) => `- ${l}`).join("\n")}`);
   if (blocks.length === 0) return undefined;
   return `Günaydın! Bugün için özet:\n\n${blocks.join("\n\n")}`;
-}
-
-async function findDeliveryTarget(
-  userId: string,
-  client: SupabaseClient,
-): Promise<{ channel: string; externalConversationId: string } | undefined> {
-  const { data, error } = await client
-    .from("conversations")
-    .select("channel, external_conversation_id")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return undefined;
-  return {
-    channel: data.channel as string,
-    externalConversationId: data.external_conversation_id as string,
-  };
 }
 
 export async function checkMorningDigest(

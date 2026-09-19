@@ -10,6 +10,7 @@ import { checkPriceAlerts } from "./price-alerts.js";
 import { checkWeatherAlerts } from "./weather-alerts.js";
 import { checkMemoryHygiene } from "./memory-hygiene.js";
 import { checkMorningDigest } from "./morning-digest.js";
+import { checkAmbientWatch } from "./ambient-watch.js";
 
 export interface DueReminder {
   id: string;
@@ -147,6 +148,9 @@ export function startScheduler(
     });
     checkMorningDigest().catch((err: unknown) => {
       console.error("Morning digest check failed:", err);
+    });
+    checkAmbientWatch().catch((err: unknown) => {
+      console.error("Ambient watch check failed:", err);
     });
   }, intervalMs);
 }

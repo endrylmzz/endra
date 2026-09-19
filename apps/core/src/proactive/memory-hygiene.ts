@@ -10,6 +10,7 @@ import { getSupabaseClient } from "../db/supabase-client.js";
 import { getPreference, setPreference } from "../memory/preferences.js";
 import type { StoredMemory } from "../memory/semantic-memory.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
+import { findDeliveryTarget } from "./delivery-target.js";
 
 const HYGIENE_PREFERENCE_KEY = "memory_hygiene_last_run_at";
 const HYGIENE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -48,30 +49,6 @@ export async function findStaleMemories(
     importance: m.importance,
     createdAt: m.created_at,
   }));
-}
-
-interface DeliveryTarget {
-  channel: string;
-  externalConversationId: string;
-}
-
-async function findDeliveryTarget(
-  userId: string,
-  client: SupabaseClient,
-): Promise<DeliveryTarget | undefined> {
-  const { data, error } = await client
-    .from("conversations")
-    .select("channel, external_conversation_id")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return undefined;
-  return {
-    channel: data.channel as string,
-    externalConversationId: data.external_conversation_id as string,
-  };
 }
 
 function isDue(lastRunAt: unknown): boolean {
