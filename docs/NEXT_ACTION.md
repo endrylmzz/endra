@@ -1,34 +1,31 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. **Six proactive/ambient features are built, tested,
-and live-verified but NOT yet deployed to the VPS**: user preferences
-activation, decision journal, memory hygiene, morning digest, an
-LLM-filtered ambient Gmail/Calendar watcher, and proactive memory
-connections (`MEMORY-008`). Full detail in `docs/DEVLOG.md`
-(2026-09-19 (4)). These came from open-ended research Ender explicitly
-invited, not the original roadmap - all of Phases 1-7 were already
-done before this batch.
+None in progress. **Everything is deployed and confirmed working in
+production** as of 2026-09-19: the six proactive/ambient features
+(user preferences activation, decision journal, memory hygiene,
+morning digest, an LLM-filtered ambient Gmail/Calendar watcher,
+proactive memory connections `MEMORY-008`) plus a `proactive_runs`
+observability pass Ender asked for before deploying. Ender pasted the
+prepared git pull/build/test/restart instruction into the RepoCloud
+DevOps AI Agent chat and confirmed it went OK. Full detail in
+`docs/DEVLOG.md` (2026-09-19 (4) and (5)). These came from open-ended
+research Ender explicitly invited, not the original roadmap - all of
+Phases 1-7 were already done before this batch, so nothing in
+`docs/TASKS.yaml` changed.
 
 Goal:
-1. **Deploy this batch** - same shape as most earlier deploys this
-   session (git pull, rebuild, restart both services, check
-   `/health`), no new secrets needed this time (unlike the
-   Calendar/Gmail batch). Two new migrations already pushed live via
-   `supabase db push` (`20260919120000_decisions.sql`,
-   `20260919150000_find_related_memories.sql`) - don't re-push, just
-   confirm `supabase migration list` still shows both in sync if
-   double-checking.
-2. After deploy, verify for real over Telegram rather than trusting
-   the pre-deploy live checks alone: try `set_preference`-style
-   conversational settings, log then resolve a decision, and (since
-   the others are time/event-triggered, not requestable on demand)
-   just confirm the scheduler tick doesn't error in production logs
-   for a few cycles.
-3. Only after that: Phase 8 (Web/PWA) and Phase 9 (Desktop) remain on
-   the roadmap, both explicitly out of scope per CLAUDE.md section 14
-   until Ender explicitly asks. Otherwise ask him directly what's
-   next - the natural backlog is exhausted again.
+There is no more "obvious next roadmap item" - Phase 8 (Web/PWA) and
+Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
+section 14 until Ender explicitly asks. Next session should:
+
+1. When it comes up naturally, a light real-world check that the new
+   proactive behaviors actually fire in production (a digest arriving,
+   an ambient notification, a volunteered memory connection) would be
+   worth more confidence than the pre-deploy live checks alone - but
+   don't go looking for a task just to do this.
+2. Otherwise, ask Ender directly what he wants next rather than
+   assuming - the natural backlog is exhausted again.
 
 ## Open items (not blocking)
 

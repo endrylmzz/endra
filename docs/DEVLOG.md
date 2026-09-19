@@ -4,6 +4,41 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-19 (5)
+
+Before deploying the six-feature batch, Ender asked what else was worth
+doing first ("deploy etmeden önce başka neler yapabiliriz bunu
+araştıralım"). Recommended observability over new speculative features
+(CLAUDE.md section 14 - build for the next logical step, not every
+hypothetical future) since the three new scheduled checks only
+surfaced failures via `console.error`, invisible once deployed without
+tailing VPS logs. Ender agreed ("sağlamlaştırmayı yapalım sonra deploy
+komutunu ver").
+
+Completed:
+
+- New `proactive_runs` table (mirrors `agent_runs`) + `logProactiveRun`
+  (`apps/core/src/observability/proactive-run-log.ts`). Wired into
+  `checkMemoryHygiene`, `checkMorningDigest`, `checkAmbientWatch` at
+  exactly two points each: a delivered notification (`status:
+  "success"`), and a per-user failure (`status: "error"`) - not every
+  silent no-op tick, which would be pure noise at a 30s scheduler
+  interval for zero value.
+
+307 tests total (3 new), clean build/lint/format. New migration
+`20260919160000_proactive_runs.sql`, pushed live via `supabase db push`
+and live-verified with a real insert/read/delete round-trip.
+
+**Deployed and confirmed**: Ender pasted the prepared instruction (git
+pull, install, build, test, restart both services, check `/health`)
+into the RepoCloud DevOps AI Agent chat - confirmed OK. This covers the
+entire six-feature batch from (4) below plus this hardening pass: user
+preferences, decision journal, memory hygiene, morning digest, the
+ambient Gmail/Calendar watcher, proactive memory connections, and
+`proactive_runs` logging - all now live.
+
+---
+
 ## 2026-09-19 (4)
 
 After the Calendar/Gmail deploy, Ender confirmed both tools work over a

@@ -35,9 +35,12 @@ map to a pre-existing `TASKS.yaml` id):
 
 All six built standalone, unit-tested with fakes, then live-verified
 against real Gmail/Calendar/LLM/DB (never by sweeping real users -
-only isolated test users or scoped helpers). 304/304 tests, clean
-build, clean lint, clean format. Two new migrations pushed live via
-`supabase db push`. Full detail in `docs/DEVLOG.md` (2026-09-19 (4)).
+only isolated test users or scoped helpers). Followed by a hardening
+pass Ender asked for before deploying: a `proactive_runs` log table so
+a failing scheduled check is visible in Supabase instead of only in
+VPS console logs. 307/307 tests, clean build, clean lint, clean
+format. Three new migrations pushed live via `supabase db push`. Full
+detail in `docs/DEVLOG.md` (2026-09-19 (4) and (5)).
 
 Before that: Calendar and Gmail with real Google OAuth
 (`TOOLS-003`/`TOOLS-004`, `ADR-008`) - see `docs/DEVLOG.md` for detail.
@@ -46,21 +49,21 @@ Currently Working:
 (none)
 
 Blocked:
-None, but **this session's six-feature batch is not yet deployed to
-the VPS** - built, tested, and live-verified locally/against the real
-DB, but no rebuild/restart has happened yet. Unlike the Calendar/Gmail
-batch, no new secrets are needed.
+None. **This session's six-feature batch plus the observability
+hardening are deployed and confirmed working in production** - Ender
+confirmed the VPS deploy went OK on 2026-09-19 after pasting the
+prepared git pull/build/test/restart instruction into the RepoCloud
+DevOps AI Agent chat.
 
 Next:
-Deploy this batch (plain git pull + rebuild + restart, same shape as
-most earlier batches) when Ender is ready, then verify the new
-proactive behaviors show up for real (a digest, a hygiene nudge, an
-ambient notification, a volunteered memory connection) rather than
-just trusting the live pre-deploy checks. After that, every tool- and
-proactivity-shaped item from both the original roadmap and this
-session's research is done - Phase 8/9 (Web, Desktop) remain
-explicitly out of scope, so ask Ender directly what's next. See
-`docs/NEXT_ACTION.md`.
+Every tool- and proactivity-shaped item from both the original roadmap
+and this session's research is now done. Only Phase 8 (Web/PWA) and
+Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
+section 14 until Ender explicitly asks. Worth a light real-world check
+when convenient (a digest actually arriving, an ambient notification,
+a volunteered memory connection) rather than only trusting the
+pre-deploy live checks - but otherwise, ask Ender directly what's
+next; the backlog is exhausted again. See `docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-19
