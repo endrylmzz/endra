@@ -1,26 +1,34 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. **Everything is deployed and confirmed working in
-production** as of 2026-09-19 (Ender confirmed `/health` OK after the
-RepoCloud rebuild that included the new `GOOGLE_CLIENT_ID`/
-`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN` env vars). All of Phases
-1-7 are done, and Phase 5 (Tools) is fully complete - every planned
-tool exists (`TOOLS-001` through `TOOLS-004`), including Calendar and
-Gmail via real Google OAuth (`ADR-008`).
+None in progress. **Six proactive/ambient features are built, tested,
+and live-verified but NOT yet deployed to the VPS**: user preferences
+activation, decision journal, memory hygiene, morning digest, an
+LLM-filtered ambient Gmail/Calendar watcher, and proactive memory
+connections (`MEMORY-008`). Full detail in `docs/DEVLOG.md`
+(2026-09-19 (4)). These came from open-ended research Ender explicitly
+invited, not the original roadmap - all of Phases 1-7 were already
+done before this batch.
 
 Goal:
-Only Phase 8 (Web/PWA) and Phase 9 (Desktop) remain on the roadmap,
-and both are explicitly out of scope for now per CLAUDE.md section 14
-("İlk sürümlerde yapılmayacaklar") - don't start either without Ender
-explicitly asking. There is no more "obvious next roadmap item." Next
-session should:
-
-1. Verify the newly-deployed Calendar/Gmail tools via a real Telegram
-   message if Ender hasn't already (ask about upcoming events, ask it
-   to read a recent email).
-2. Otherwise, ask Ender directly what he wants next rather than
-   assuming - the natural backlog is exhausted.
+1. **Deploy this batch** - same shape as most earlier deploys this
+   session (git pull, rebuild, restart both services, check
+   `/health`), no new secrets needed this time (unlike the
+   Calendar/Gmail batch). Two new migrations already pushed live via
+   `supabase db push` (`20260919120000_decisions.sql`,
+   `20260919150000_find_related_memories.sql`) - don't re-push, just
+   confirm `supabase migration list` still shows both in sync if
+   double-checking.
+2. After deploy, verify for real over Telegram rather than trusting
+   the pre-deploy live checks alone: try `set_preference`-style
+   conversational settings, log then resolve a decision, and (since
+   the others are time/event-triggered, not requestable on demand)
+   just confirm the scheduler tick doesn't error in production logs
+   for a few cycles.
+3. Only after that: Phase 8 (Web/PWA) and Phase 9 (Desktop) remain on
+   the roadmap, both explicitly out of scope per CLAUDE.md section 14
+   until Ender explicitly asks. Otherwise ask him directly what's
+   next - the natural backlog is exhausted again.
 
 ## Open items (not blocking)
 

@@ -4,6 +4,92 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-19 (4)
+
+After the Calendar/Gmail deploy, Ender confirmed both tools work over a
+real Telegram conversation, then explicitly invited independent
+research for a new product direction ("yeni yön belirleyelim,
+esinlenmek adına dilediğin gibi araştırma yapabilirsin"). Researched
+2026 ambient-agent patterns and proposed six ideas; Ender approved all
+six ("tamam hepsini yapalım") and picked the LLM-filtered design for
+the ambient watcher over a cheaper always-notify one when asked.
+
+He also asked whether he can already make settings changes
+conversationally over Telegram ("şu bilgiyi kaydet, şunu ayarlar
+vb"). Answer: yes, already true as of this batch - `set_preference` /
+`list_preferences` / `delete_preference` are registered tools, and
+`log_decision`/`resolve_decision` work the same way; nothing further
+needed there.
+
+Completed (all six, each built standalone -> unit tested with fakes ->
+live-verified against real APIs/DB before being called done):
+
+- **User preferences activated** - `set_preference`, `list_preferences`,
+  `delete_preference` tools; `listPreferences`/`deletePreference` added
+  to `preferences.ts`; injected into every system prompt build.
+- **Decision journal** - new `decisions` table; `log_decision` (with an
+  optional scheduled follow-up reminder), `list_decisions`,
+  `resolve_decision`; open decisions injected into the system prompt so
+  ENDRA can resolve one from context alone. Live-verified: it
+  spontaneously resolved an open decision in a separate conversation
+  turn with zero explicit hints.
+- **Memory hygiene** - weekly per-user sweep
+  (`apps/core/src/proactive/memory-hygiene.ts`) surfacing stale
+  (>30 days, importance <0.4) memories and asking whether to keep or
+  delete them; `list_memories`/`delete_memory` tools alongside it.
+- **Morning digest** - once-daily per-user digest
+  (`apps/core/src/proactive/morning-digest.ts`) combining today's
+  calendar, today's due reminders, overnight unread email, and open
+  decisions into one message; skips sending when there's nothing to
+  report; digest time configurable via the preferences store,
+  Istanbul-timezone-aware.
+- **Ambient Gmail/Calendar watcher** - every 15 minutes per user
+  (`apps/core/src/proactive/ambient-watch.ts`), checks for a new unread
+  email or an event starting within 45 minutes, then asks the LLM
+  whether it's actually worth an unsolicited ping before delivering
+  anything (the "Notify" tier of the ambient-agent pattern - the other
+  proactive checks are unambiguous triggers that don't need this
+  judgment call). Extracted `findDeliveryTarget` out of memory-hygiene
+  and morning-digest into a shared `delivery-target.ts` once a third
+  proactive check needed it.
+- **Proactive memory connections** (`MEMORY-008`) - after a new memory
+  is promoted, `find_related_memories` (new SQL function, pushed live)
+  finds older memories that are related but not near-duplicate, then
+  the LLM judges whether there's a genuine connection or contradiction
+  worth mentioning. A hit is queued in preferences
+  (`pending_memory_insights`, capped at 3) and surfaced once in the
+  next system prompt as an internal note ENDRA can volunteer naturally,
+  then cleared - a one-shot nudge, not something retried until said.
+
+Live verification highlights (all against real APIs/DB, never by
+sweeping real users - the top-level `check*` sweep functions were only
+ever exercised against isolated test users or via their scoped
+helpers): the ambient-watch LLM judge correctly flagged an urgent-
+looking email and correctly ignored a newsletter; real Gmail/Calendar
+fetches returned real data; the memory-connection judge correctly
+flagged a real contradiction ("artık kahve içmiyor" vs. "her sabah
+kahve içer") and a real connection, and ignored unrelated info; the new
+`find_related_memories` RPC, tested against an isolated test user,
+correctly matched a related memory while excluding an unrelated one.
+
+304 tests total, all passing (57 new across `ambient-watch.test.ts`,
+`delivery-target.test.ts`, plus additions to `promotion.test.ts`,
+`semantic-memory.test.ts`, `message-service.test.ts`). Clean build,
+clean lint, clean Prettier format.
+
+New migrations, both pushed live via `supabase db push`:
+`20260919120000_decisions.sql`, `20260919150000_find_related_memories.sql`.
+
+None of these six map to a pre-existing `TASKS.yaml` task id - they
+came out of open-ended research, not the original roadmap, so no
+`TASKS.yaml` changes.
+
+Not yet deployed to the VPS. Unlike the Calendar/Gmail batch, no new
+secrets are needed - a plain git pull + rebuild + restart should cover
+it, same as most earlier batches this session.
+
+---
+
 ## 2026-09-19 (3)
 
 Ender asked to set up Google OAuth for Gmail/Calendar and wanted a

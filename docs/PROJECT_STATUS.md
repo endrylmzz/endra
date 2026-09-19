@@ -10,53 +10,57 @@ Overall Progress:
 85% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Calendar and Gmail, with real Google OAuth** (`TOOLS-003`/`TOOLS-004`).
-Ender set up a Google Cloud project, OAuth consent screen, and a
-Desktop-app OAuth client through Google Cloud Console; a one-time
-script (`scripts/google-oauth-setup.mjs`) then captured a refresh
-token into `.env`. New architecture piece, `ADR-008`, documents why
-(loopback OAuth flow, raw REST over `googleapis`, and why this can
-never be automated on Ender's behalf).
+**Six proactive/ambient features**, from open-ended research Ender
+explicitly invited after confirming Calendar/Gmail worked live (none
+map to a pre-existing `TASKS.yaml` id):
 
-- `list_calendar_events` / `create_calendar_event` (confirmation
-  required) / `delete_calendar_event` (confirmation required).
-- `list_emails` / `read_email` (both read-only) / `send_email`
-  (`riskLevel: "critical"`, always requires confirmation - CLAUDE.md
-  section 6's named example of a critical action).
+- User preferences activated (`set_preference`/`list_preferences`/
+  `delete_preference`), answering Ender's question about whether he
+  can change settings conversationally over Telegram - yes.
+- Decision journal (`log_decision`/`list_decisions`/`resolve_decision`,
+  new `decisions` table, open decisions injected into every system
+  prompt).
+- Memory hygiene (weekly stale-memory digest + `list_memories`/
+  `delete_memory`).
+- Morning digest (daily calendar + reminders + email + open decisions,
+  skips sending when empty).
+- Ambient Gmail/Calendar watcher - checks every 15 min, LLM-filtered
+  (Ender's explicit choice over a cheaper always-notify design) so it
+  only pings for things actually worth interrupting about.
+- Proactive memory connections (`MEMORY-008`) - a new
+  `find_related_memories` SQL function plus an LLM judge that
+  occasionally volunteers a genuine connection or contradiction between
+  a new memory and older ones, queued one-shot into the next system
+  prompt.
 
-Verified live against the real Google account (not mocks): listed the
-real calendar, created a real test event, confirmed it appeared, then
-deleted it; listed real inbox messages and read one's real decoded
-body; sent a real test email to Ender's own address and read it back.
-**Found and fixed a real bug this way**: the first live send came back
-with a mangled Subject line (raw UTF-8 in an email header needs RFC
-2047 encoding, unlike the body) - fixed, then re-verified live with a
-Turkish-character subject that came back correctly. 242/242 tests,
-clean build, clean lint, clean format.
+All six built standalone, unit-tested with fakes, then live-verified
+against real Gmail/Calendar/LLM/DB (never by sweeping real users -
+only isolated test users or scoped helpers). 304/304 tests, clean
+build, clean lint, clean format. Two new migrations pushed live via
+`supabase db push`. Full detail in `docs/DEVLOG.md` (2026-09-19 (4)).
 
-Before that, in the same multi-day session: `web_search`/`run_code`
-(OpenAI-hosted, closing `TOOLS-002` for real), weather-based
-conditional monitors + reminder retry + a multi-tool-call confirmation
-fix + `list_capabilities`, weather/Wikipedia/currency tools, recurring
-reminders + price alerts, and text-to-speech replies - see
-`docs/DEVLOG.md` for details on each.
+Before that: Calendar and Gmail with real Google OAuth
+(`TOOLS-003`/`TOOLS-004`, `ADR-008`) - see `docs/DEVLOG.md` for detail.
 
 Currently Working:
 (none)
 
 Blocked:
-None. **All six feature batches from this session are now deployed and
-confirmed working in production** - Ender confirmed `/health` OK on
-2026-09-19 after the RepoCloud rebuild that included the new
-`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REFRESH_TOKEN` env
-vars.
+None, but **this session's six-feature batch is not yet deployed to
+the VPS** - built, tested, and live-verified locally/against the real
+DB, but no rebuild/restart has happened yet. Unlike the Calendar/Gmail
+batch, no new secrets are needed.
 
 Next:
-Every tool-shaped roadmap item is done. Only Phase 8/9 (Web, Desktop)
-remain, both explicitly out of scope for now. Verify the new
-Calendar/Gmail tools via a real Telegram message if not done already,
-then ask Ender directly what he wants next - there's no more obvious
-backlog item. See `docs/NEXT_ACTION.md`.
+Deploy this batch (plain git pull + rebuild + restart, same shape as
+most earlier batches) when Ender is ready, then verify the new
+proactive behaviors show up for real (a digest, a hygiene nudge, an
+ambient notification, a volunteered memory connection) rather than
+just trusting the live pre-deploy checks. After that, every tool- and
+proactivity-shaped item from both the original roadmap and this
+session's research is done - Phase 8/9 (Web, Desktop) remain
+explicitly out of scope, so ask Ender directly what's next. See
+`docs/NEXT_ACTION.md`.
 
 Last Updated:
 2026-09-19
