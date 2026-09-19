@@ -134,12 +134,17 @@ describe("checkMemoryHygiene", () => {
       }),
     });
     const deliver = vi.fn().mockResolvedValue(undefined);
+    const log = vi.fn();
 
-    await checkMemoryHygiene(client, deliver);
+    await checkMemoryHygiene(client, deliver, log);
 
     expect(deliver).toHaveBeenCalledWith("42", expect.stringContaining("eski bilgi"));
     expect(prefs.upserts).toHaveLength(1);
     expect((prefs.upserts[0] as { key: string }).key).toBe("memory_hygiene_last_run_at");
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ checkName: "memory_hygiene", userId: "user-1", status: "success" }),
+      client,
+    );
   });
 
   it("does not deliver when due but no stale memories exist, but still marks the run", async () => {
@@ -201,10 +206,15 @@ describe("checkMemoryHygiene", () => {
       }),
     });
     const deliver = vi.fn();
+    const log = vi.fn();
 
-    await expect(checkMemoryHygiene(client, deliver)).resolves.toBeUndefined();
+    await expect(checkMemoryHygiene(client, deliver, log)).resolves.toBeUndefined();
 
     // user-2 still got processed (its run got marked) despite user-1 throwing.
     expect(prefs.upserts).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ checkName: "memory_hygiene", userId: "user-1", status: "error" }),
+      client,
+    );
   });
 });

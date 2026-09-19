@@ -14,6 +14,9 @@ import { getGoogleAccessToken } from "../google/oauth-client.js";
 import { listOpenDecisions } from "../tools/builtin/decisions.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
 import { findDeliveryTarget } from "./delivery-target.js";
+import { logProactiveRun } from "../observability/proactive-run-log.js";
+
+const CHECK_NAME = "morning_digest";
 
 const LAST_RUN_PREFERENCE_KEY = "morning_digest_last_run_at";
 const DIGEST_TIME_PREFERENCE_KEY = "morning_digest_time";
@@ -192,6 +195,7 @@ function composeDigest(sections: {
 export async function checkMorningDigest(
   client: SupabaseClient = getSupabaseClient(),
   deliver: typeof deliverToTelegram = deliverToTelegram,
+  log: typeof logProactiveRun = logProactiveRun,
 ): Promise<void> {
   const { data: users, error } = await client.from("users").select("id");
   if (error) throw error;
@@ -217,11 +221,24 @@ export async function checkMorningDigest(
         const target = await findDeliveryTarget(user.id, client);
         if (target?.channel === "telegram") {
           await deliver(target.externalConversationId, message);
+          await log(
+            { checkName: CHECK_NAME, userId: user.id, status: "success", detail: "digest sent" },
+            client,
+          );
         }
       }
       await setPreference(user.id, LAST_RUN_PREFERENCE_KEY, new Date().toISOString(), client);
     } catch (err) {
       console.error("Morning digest check failed for user", user.id, err);
+      await log(
+        {
+          checkName: CHECK_NAME,
+          userId: user.id,
+          status: "error",
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+        client,
+      );
     }
   }
 }

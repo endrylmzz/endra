@@ -11,6 +11,9 @@ import { getPreference, setPreference } from "../memory/preferences.js";
 import type { StoredMemory } from "../memory/semantic-memory.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
 import { findDeliveryTarget } from "./delivery-target.js";
+import { logProactiveRun } from "../observability/proactive-run-log.js";
+
+const CHECK_NAME = "memory_hygiene";
 
 const HYGIENE_PREFERENCE_KEY = "memory_hygiene_last_run_at";
 const HYGIENE_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -60,6 +63,7 @@ function isDue(lastRunAt: unknown): boolean {
 export async function checkMemoryHygiene(
   client: SupabaseClient = getSupabaseClient(),
   deliver: typeof deliverToTelegram = deliverToTelegram,
+  log: typeof logProactiveRun = logProactiveRun,
 ): Promise<void> {
   const { data: users, error } = await client.from("users").select("id");
   if (error) throw error;
@@ -78,11 +82,29 @@ export async function checkMemoryHygiene(
             target.externalConversationId,
             `Hafızanda uzun süredir tazelenmemiş, önem derecesi düşük birkaç kayıt var:\n${list}\n\nBunları hâlâ tutmak mı istersin, yoksa silinsin mi? Söylemen yeterli.`,
           );
+          await log(
+            {
+              checkName: CHECK_NAME,
+              userId: user.id,
+              status: "success",
+              detail: `${stale.length} stale memory flagged`,
+            },
+            client,
+          );
         }
       }
       await setPreference(user.id, HYGIENE_PREFERENCE_KEY, new Date().toISOString(), client);
     } catch (err) {
       console.error("Memory hygiene check failed for user", user.id, err);
+      await log(
+        {
+          checkName: CHECK_NAME,
+          userId: user.id,
+          status: "error",
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+        client,
+      );
     }
   }
 }

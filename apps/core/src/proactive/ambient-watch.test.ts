@@ -138,11 +138,21 @@ describe("checkAmbientWatch", () => {
     const fetchEvents = vi.fn(async () => []);
     const deliver = vi.fn().mockResolvedValue(undefined);
     const llm = fakeLLM('{"shouldNotify": true, "message": "Patrondan acil bir mail geldi."}');
+    const log = vi.fn();
 
-    await checkAmbientWatch(client, deliver, llm, fetchEmail, fetchEvents);
+    await checkAmbientWatch(client, deliver, llm, fetchEmail, fetchEvents, log);
 
     expect(llm.generate).toHaveBeenCalled();
     expect(deliver).toHaveBeenCalledWith("42", "Patrondan acil bir mail geldi.");
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkName: "ambient_watch",
+        userId: "user-1",
+        status: "success",
+        detail: "Patrondan acil bir mail geldi.",
+      }),
+      client,
+    );
   });
 
   it("does not deliver when the model says it's not worth notifying", async () => {
@@ -223,13 +233,18 @@ describe("checkAmbientWatch", () => {
     });
     const fetchEmail = vi.fn(async () => undefined);
     const fetchEvents = vi.fn(async () => []);
+    const log = vi.fn();
 
     await expect(
-      checkAmbientWatch(client, vi.fn(), fakeLLM("{}"), fetchEmail, fetchEvents),
+      checkAmbientWatch(client, vi.fn(), fakeLLM("{}"), fetchEmail, fetchEvents, log),
     ).resolves.toBeUndefined();
 
     expect(
       prefs.upserts.some((u) => (u as { key: string }).key === "ambient_watch_last_checked_at"),
     ).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ checkName: "ambient_watch", userId: "user-1", status: "error" }),
+      client,
+    );
   });
 });

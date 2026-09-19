@@ -142,8 +142,9 @@ describe("checkMorningDigest", () => {
       }),
     });
     const deliver = vi.fn().mockResolvedValue(undefined);
+    const log = vi.fn();
 
-    await checkMorningDigest(client, deliver);
+    await checkMorningDigest(client, deliver, log);
 
     expect(deliver).toHaveBeenCalledTimes(1);
     const [conversationId, message] = deliver.mock.calls[0] as [string, string];
@@ -151,6 +152,10 @@ describe("checkMorningDigest", () => {
     expect(message).toContain("Faturaları öde");
     expect(message).toContain("Yeni işe başlamak");
     expect(prefs.upserts).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ checkName: "morning_digest", userId: "user-1", status: "success" }),
+      client,
+    );
   });
 
   it("keeps checking other users when one user's check throws", async () => {
@@ -191,9 +196,14 @@ describe("checkMorningDigest", () => {
       }),
     });
     const deliver = vi.fn();
+    const log = vi.fn();
 
-    await expect(checkMorningDigest(client, deliver)).resolves.toBeUndefined();
+    await expect(checkMorningDigest(client, deliver, log)).resolves.toBeUndefined();
 
     expect(prefs.upserts).toHaveLength(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({ checkName: "morning_digest", userId: "user-1", status: "error" }),
+      client,
+    );
   });
 });

@@ -16,6 +16,9 @@ import { getGoogleAccessToken } from "../google/oauth-client.js";
 import { OpenAIProvider } from "../llm/openai-provider.js";
 import { deliverToTelegram } from "./deliver-telegram.js";
 import { findDeliveryTarget } from "./delivery-target.js";
+import { logProactiveRun } from "../observability/proactive-run-log.js";
+
+const CHECK_NAME = "ambient_watch";
 
 const LAST_CHECKED_KEY = "ambient_watch_last_checked_at";
 const LAST_SEEN_EMAIL_KEY = "ambient_last_seen_email_id";
@@ -157,6 +160,7 @@ export async function checkAmbientWatch(
   llm: LLMProvider = getDefaultProvider(),
   fetchEmail: typeof fetchNewestUnreadEmail = fetchNewestUnreadEmail,
   fetchEvents: typeof fetchUpcomingEvents = fetchUpcomingEvents,
+  log: typeof logProactiveRun = logProactiveRun,
 ): Promise<void> {
   const { data: users, error } = await client.from("users").select("id");
   if (error) throw error;
@@ -200,8 +204,18 @@ export async function checkAmbientWatch(
         });
         if (judgment.shouldNotify && judgment.message) {
           const target = await findDeliveryTarget(user.id, client);
-          if (target?.channel === "telegram")
+          if (target?.channel === "telegram") {
             await deliver(target.externalConversationId, judgment.message);
+            await log(
+              {
+                checkName: CHECK_NAME,
+                userId: user.id,
+                status: "success",
+                detail: judgment.message,
+              },
+              client,
+            );
+          }
         }
       }
 
@@ -215,6 +229,15 @@ export async function checkAmbientWatch(
       await setPreference(user.id, LAST_CHECKED_KEY, new Date().toISOString(), client);
     } catch (err) {
       console.error("Ambient watch check failed for user", user.id, err);
+      await log(
+        {
+          checkName: CHECK_NAME,
+          userId: user.id,
+          status: "error",
+          errorMessage: err instanceof Error ? err.message : String(err),
+        },
+        client,
+      );
     }
   }
 }
