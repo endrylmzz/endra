@@ -10,17 +10,36 @@ Overall Progress:
 85% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Structured entity tracking** (`MEMORY-009`) - people/places/projects/
-organizations are extracted alongside each memory candidate (no extra
-LLM call) and linked via new `entities`/`memory_entities` tables, with
-`list_entities`/`recall_about` tools to query them ("what have we
-discussed about X"). No explicit relationship type between entities -
-co-occurrence in a memory is enough. Found and fixed a real bug via
-live testing: Turkish "İ" needs `toLocaleLowerCase("tr")`, not the JS
-default, or "İzmir" and "izmir" resolve to two different entities.
-324/324 tests, clean build/lint/format. Migration
+**`deep_research` tool + a systemic LLM-provider bug fix.** Breaks a
+broad topic into up to 4 sub-questions, researches each, synthesizes
+one report - genuinely multi-step, unlike one-shot `web_search`.
+Building it surfaced a real bug affecting every existing LLM call, not
+just this tool: `gpt-5.6`'s `reasoning_effort` was only disabled when
+tools were present, so a plain call with long input could spend its
+entire token budget on hidden reasoning and return empty content
+(reproduced live: `finish_reason: "length"`, 0 visible chars). Fixed by
+always disabling `reasoning_effort` and adding an optional `maxTokens`
+override for long-form outputs; re-verified live with a complete
+14,912-character report. 336/336 tests. Also ran an external research
+round on modern agent patterns per Ender's request - 6 ideas proposed,
+2 accepted as later work (ambient-watch silence bias, memory
+consolidation), 2 explicitly rejected (generalized orchestration
+framework, confidence calibration) as drifting toward the roadmap's
+banned territory or unnecessary complexity. Full detail in
+`docs/DEVLOG.md` (2026-09-20 (2)). Not yet deployed to the VPS.
+
+Before that: **structured entity tracking** (`MEMORY-009`) - people/
+places/projects/organizations are extracted alongside each memory
+candidate (no extra LLM call) and linked via new `entities`/
+`memory_entities` tables, with `list_entities`/`recall_about` tools to
+query them ("what have we discussed about X"). No explicit
+relationship type between entities - co-occurrence in a memory is
+enough. Found and fixed a real bug via live testing: Turkish "İ" needs
+`toLocaleLowerCase("tr")`, not the JS default, or "İzmir" and "izmir"
+resolve to two different entities. Migration
 `20260920090000_entities.sql` pushed live. Full detail in
-`docs/DEVLOG.md` (2026-09-20). Not yet deployed to the VPS.
+`docs/DEVLOG.md` (2026-09-20). Also not yet deployed - will go out
+together with the deep_research batch above.
 
 Before that: **six proactive/ambient features**, from open-ended research Ender
 explicitly invited after confirming Calendar/Gmail worked live (none
@@ -61,17 +80,18 @@ Currently Working:
 (none)
 
 Blocked:
-None, but **structured entity tracking (MEMORY-009) is not yet
-deployed to the VPS** - built, tested, and live-verified against the
-real DB/LLM, but no rebuild/restart has happened yet. No new secrets
-needed. The six-feature proactive batch plus observability hardening
-from 2026-09-19 are already deployed and confirmed (digest arrived for
-real in production, no issues).
+None, but **two batches are not yet deployed to the VPS**: structured
+entity tracking (`MEMORY-009`) and `deep_research` + the LLM-provider
+reasoning-effort fix. Both built, tested, and live-verified against
+the real DB/LLM/APIs; no rebuild/restart has happened yet; no new
+secrets needed for either. The six-feature proactive batch plus
+observability hardening from 2026-09-19 are already deployed and
+confirmed (digest arrived for real in production, no issues).
 
 Next:
-Deploy the entity-tracking batch (plain git pull + rebuild + restart)
-when Ender is ready. After that, every tool-, proactivity-, and
-memory-shaped item from the original roadmap and this session's
+Deploy both undeployed batches together (plain git pull + rebuild +
+restart) when Ender is ready. After that, every tool-, proactivity-,
+and memory-shaped item from the original roadmap and this session's
 research is done. Only Phase 8 (Web/PWA) and Phase 9 (Desktop) remain,
 both explicitly out of scope per CLAUDE.md section 14 until Ender
 explicitly asks - otherwise ask him directly what's next. See

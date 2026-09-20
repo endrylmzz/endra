@@ -4,6 +4,68 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-20 (2)
+
+Before deploying MEMORY-009, Ender asked to also build option #4 from
+the earlier direction suggestions (deep research mode), then run a
+fresh external research round on modern/innovative agent patterns and
+report what else could be added.
+
+Completed - `deep_research` tool:
+
+- Breaks a broad/comparative topic into up to 4 focused sub-questions,
+  searches the web for each (reusing `web-search.ts`'s hosted search,
+  extracted as `searchWeb()`), then synthesizes one coherent report -
+  genuinely multi-step, unlike the one-shot `web_search` tool.
+
+**Found and fixed a real, systemic bug via live testing**: `OpenAIProvider`
+only disabled `gpt-5.6`'s `reasoning_effort` when tools were present.
+On a plain `generate()` call with long/complex input (the report-
+synthesis step, 20K+ chars of findings), the model spent its entire
+1024-token completion budget on hidden reasoning and returned empty
+content - `finish_reason: "length"`, `reasoning_tokens: 1024`, 0
+visible characters, reproduced live before fixing. Fixed by always
+disabling `reasoning_effort` (every ENDRA call is a short reply or
+structured output, none need hidden reasoning enough to risk starving
+it) and adding an optional `maxTokens` override to `LLMGenerateRequest`
+for genuinely long-form outputs like the synthesis step (4096 vs. the
+1024 default). This was a latent gap in every existing LLM call in the
+codebase, not just this new tool - live-verified the fix directly: a
+first run reproduced the empty report end to end, a second run after
+the fix produced a complete 14,912-character report with no truncation.
+
+336 tests total (11 new), clean build/lint/format. No schema change,
+nothing to push to Supabase for this piece.
+
+Research round (external, via a research pass - not implementation):
+proposed 6 ideas, filtered against the roadmap's explicit "won't build"
+list. Kept for later, not started:
+
+1. Gmail/Calendar push notifications instead of ambient-watch's 15-min
+   polling - blocked on the open `endra-core` firewall/public-HTTPS
+   question already in NEXT_ACTION.md.
+2. Make ambient-watch's LLM judge more explicitly biased toward silence
+   when uncertain, rather than a plain binary call - cheap, low risk.
+3. Memory consolidation - collapse many low-importance episodic
+   memories linked to the same entity into one semantic summary,
+   building on MEMORY-009's entity links. Natural extension of memory
+   hygiene, but needs real usage data to accumulate first.
+4. Generalizing deep_research's decompose/search/synthesize pattern
+   into a reusable "orchestration framework" - explicitly rejected,
+   risks drifting into the roadmap's banned multi-agent territory.
+5. Confidence calibration for the LLM-judge pattern (judgeWorthNotifying,
+   judgeMemoryConnection) - explicitly rejected for now, not worth the
+   complexity for a single-user assistant where a wrong notification is
+   just mildly annoying, not risky.
+6. Rewind/Limitless shutting down in late 2025 - not an action item,
+   just confirms ENDRA's explicit/tool-based approach (vs. passive
+   continuous recording) is the right side of that tradeoff.
+
+Priority Ender was given: #2 now, #3 once entity data accumulates, #1
+only once the firewall question is settled, #4/#5 not for now.
+
+---
+
 ## 2026-09-20
 
 After confirming the morning digest arrived for real in production,
