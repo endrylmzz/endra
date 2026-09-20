@@ -4,6 +4,49 @@ Technical milestone log. Not a detailed daily journal.
 
 ---
 
+## 2026-09-20
+
+After confirming the morning digest arrived for real in production,
+Ender asked for direction suggestions ("yön önerilerinde bulun") for
+what to build next. Proposed four options from the existing roadmap
+context (no fresh external research this round): structured entity
+tracking, a weekly/monthly digest, active project/task tracking, and a
+multi-step research mode. Ender picked structured entity tracking.
+
+Completed - `MEMORY-009` structured entity tracking:
+
+- New `entities` (person/place/project/organization/other, unique per
+  user by normalized name) and `memory_entities` (many-to-many) tables.
+  Deliberately no explicit relationship type between entities -
+  co-occurrence in the same memory already gives an implicit
+  connection, avoiding the extra failure surface of typed relationship
+  extraction for a personal single-user assistant.
+- `apps/core/src/memory/entities.ts` - `findOrCreateEntity`,
+  `linkMemoryToEntity`, `findEntityByName`, `listEntities`,
+  `findMemoriesForEntity`.
+- Extended the existing promotion-pipeline extraction call (no new LLM
+  call) to also emit `entities: [{name, type}]` per memory candidate;
+  `promoteMemories` links each one after saving, isolated in its own
+  try/catch so a linking failure never loses the underlying memory.
+- Two new read tools: `list_entities`, `recall_about` (find every
+  memory linked to a named entity - "what have we discussed about X").
+- Existing memories are not backfilled, only new ones going forward.
+
+**Found and fixed a real bug via live testing**: entity name matching
+used the JS default `toLowerCase()`, which maps Turkish "İ" to "i̇"
+(with a combining dot) - a later plain "izmir" mention would not match
+it, silently creating a duplicate entity instead of resolving to the
+same one. Fixed with `toLocaleLowerCase("tr")`, verified live: a real
+LLM extraction on "İzmir'de bir iş görüşmem var" produced entities
+`İzmir` (place) and `ENDRA` (project); promoting it linked both, and
+looking up by the plain lowercase `"izmir"` correctly matched the
+stored `İzmir` entity and returned the linked memory.
+
+324 tests total (24 new), clean build/lint/format. New migration
+`20260920090000_entities.sql`, pushed live via `supabase db push`.
+
+---
+
 ## 2026-09-19 (5)
 
 Before deploying the six-feature batch, Ender asked what else was worth

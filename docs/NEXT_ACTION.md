@@ -1,28 +1,35 @@
 # NEXT ACTION
 
 Continue task:
-None in progress. **Everything is deployed and confirmed working in
-production** as of 2026-09-19: the six proactive/ambient features
-(user preferences activation, decision journal, memory hygiene,
-morning digest, an LLM-filtered ambient Gmail/Calendar watcher,
-proactive memory connections `MEMORY-008`) plus a `proactive_runs`
-observability pass Ender asked for before deploying. Ender pasted the
-prepared git pull/build/test/restart instruction into the RepoCloud
-DevOps AI Agent chat and confirmed it went OK. Full detail in
-`docs/DEVLOG.md` (2026-09-19 (4) and (5)). These came from open-ended
-research Ender explicitly invited, not the original roadmap - all of
-Phases 1-7 were already done before this batch, so nothing in
-`docs/TASKS.yaml` changed.
+None in progress. The six proactive/ambient features (user preferences
+activation, decision journal, memory hygiene, morning digest, an
+LLM-filtered ambient Gmail/Calendar watcher, proactive memory
+connections `MEMORY-008`) plus `proactive_runs` observability are
+**deployed and confirmed working in production** as of 2026-09-19 -
+Ender confirmed both the VPS deploy and, separately, that the morning
+digest arrived for real with no issues.
+
+On 2026-09-20, Ender asked for direction suggestions; picked
+**structured entity tracking (`MEMORY-009`)** - people/places/projects/
+organizations extracted alongside each memory candidate and linked via
+new `entities`/`memory_entities` tables, queryable with `list_entities`/
+`recall_about`. Built, tested, live-verified (including a real bug fix:
+Turkish "İ" needs `toLocaleLowerCase("tr")` for entity-name matching to
+work correctly). **Not yet deployed to the VPS.** Full detail in
+`docs/DEVLOG.md` (2026-09-20). None of this batch maps to a
+pre-existing `TASKS.yaml` id - open-ended research/direction picks, not
+the original roadmap.
 
 Goal:
-There is no more "obvious next roadmap item" - Phase 8 (Web/PWA) and
-Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
-section 14 until Ender explicitly asks. Real-world confirmation that
-the new proactive behaviors actually fire in production is already
-in: Ender confirmed the morning digest arrived for real on 2026-09-20,
-no issues noticed. Next session should just ask Ender directly what he
-wants next rather than assuming - the natural backlog is exhausted
-again.
+1. **Deploy the entity-tracking batch** - same shape as every earlier
+   deploy this session (git pull, rebuild, restart both services,
+   check `/health`). No new secrets needed. Migration
+   `20260920090000_entities.sql` is already pushed live via
+   `supabase db push` - don't re-push.
+2. After that, there is no more "obvious next roadmap item" - Phase 8
+   (Web/PWA) and Phase 9 (Desktop) remain, both explicitly out of
+   scope per CLAUDE.md section 14 until Ender explicitly asks.
+   Otherwise ask him directly what he wants next.
 
 ## Open items (not blocking)
 

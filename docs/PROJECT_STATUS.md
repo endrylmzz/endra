@@ -10,7 +10,19 @@ Overall Progress:
 85% (see `npm run status`, computed from `docs/TASKS.yaml`)
 
 Last Completed:
-**Six proactive/ambient features**, from open-ended research Ender
+**Structured entity tracking** (`MEMORY-009`) - people/places/projects/
+organizations are extracted alongside each memory candidate (no extra
+LLM call) and linked via new `entities`/`memory_entities` tables, with
+`list_entities`/`recall_about` tools to query them ("what have we
+discussed about X"). No explicit relationship type between entities -
+co-occurrence in a memory is enough. Found and fixed a real bug via
+live testing: Turkish "İ" needs `toLocaleLowerCase("tr")`, not the JS
+default, or "İzmir" and "izmir" resolve to two different entities.
+324/324 tests, clean build/lint/format. Migration
+`20260920090000_entities.sql` pushed live. Full detail in
+`docs/DEVLOG.md` (2026-09-20). Not yet deployed to the VPS.
+
+Before that: **six proactive/ambient features**, from open-ended research Ender
 explicitly invited after confirming Calendar/Gmail worked live (none
 map to a pre-existing `TASKS.yaml` id):
 
@@ -49,21 +61,21 @@ Currently Working:
 (none)
 
 Blocked:
-None. **This session's six-feature batch plus the observability
-hardening are deployed and confirmed working in production** - Ender
-confirmed the VPS deploy went OK on 2026-09-19 after pasting the
-prepared git pull/build/test/restart instruction into the RepoCloud
-DevOps AI Agent chat.
+None, but **structured entity tracking (MEMORY-009) is not yet
+deployed to the VPS** - built, tested, and live-verified against the
+real DB/LLM, but no rebuild/restart has happened yet. No new secrets
+needed. The six-feature proactive batch plus observability hardening
+from 2026-09-19 are already deployed and confirmed (digest arrived for
+real in production, no issues).
 
 Next:
-Every tool- and proactivity-shaped item from both the original roadmap
-and this session's research is now done. Only Phase 8 (Web/PWA) and
-Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
-section 14 until Ender explicitly asks. Worth a light real-world check
-when convenient (a digest actually arriving, an ambient notification,
-a volunteered memory connection) rather than only trusting the
-pre-deploy live checks - but otherwise, ask Ender directly what's
-next; the backlog is exhausted again. See `docs/NEXT_ACTION.md`.
+Deploy the entity-tracking batch (plain git pull + rebuild + restart)
+when Ender is ready. After that, every tool-, proactivity-, and
+memory-shaped item from the original roadmap and this session's
+research is done. Only Phase 8 (Web/PWA) and Phase 9 (Desktop) remain,
+both explicitly out of scope per CLAUDE.md section 14 until Ender
+explicitly asks - otherwise ask him directly what's next. See
+`docs/NEXT_ACTION.md`.
 
 Last Updated:
-2026-09-19
+2026-09-20
