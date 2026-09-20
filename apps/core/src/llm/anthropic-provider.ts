@@ -31,7 +31,7 @@ export class AnthropicProvider implements LLMProvider {
     // differently) is dropped rather than sent incorrectly.
     const response = await this.client.messages.create({
       model: this.model,
-      max_tokens: DEFAULT_MAX_TOKENS,
+      max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
       system: request.systemPrompt,
       messages: request.messages
         .filter((m): m is typeof m & { role: "user" | "assistant" } => m.role !== "tool")

@@ -54,4 +54,17 @@ describe("AnthropicProvider", () => {
 
     expect(result.content).toBe("");
   });
+
+  it("uses the default token budget unless the request overrides it", async () => {
+    const create = vi.fn().mockResolvedValue({
+      content: [{ type: "text", text: "ok" }],
+      model: "claude-sonnet-5",
+      usage: { input_tokens: 1, output_tokens: 1 },
+    });
+    const provider = new AnthropicProvider({ client: fakeClient(create) });
+
+    await provider.generate({ messages: [{ role: "user", content: "hi" }], maxTokens: 4096 });
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: 4096 }));
+  });
 });

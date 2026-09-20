@@ -12,6 +12,25 @@ function getDefaultClient(): OpenAI {
   return defaultClient;
 }
 
+// Extracted so deep-research.ts can reuse the same hosted search call
+// for each of its sub-questions instead of duplicating the Responses
+// API call.
+export async function searchWeb(
+  query: string,
+  client: OpenAI = getDefaultClient(),
+): Promise<string> {
+  const model = process.env.OPENAI_SEARCH_MODEL ?? DEFAULT_SEARCH_MODEL;
+  const response = await client.responses.create({
+    model,
+    tools: [{ type: "web_search" }],
+    input: query,
+  });
+  if (!response.output_text) {
+    throw new Error("Web search returned no answer");
+  }
+  return response.output_text;
+}
+
 export function createWebSearchTool(client: OpenAI = getDefaultClient()): EndraTool {
   return {
     name: "web_search",
@@ -28,16 +47,12 @@ export function createWebSearchTool(client: OpenAI = getDefaultClient()): EndraT
     },
     async execute(input) {
       const { query } = input as { query: string };
-      const model = process.env.OPENAI_SEARCH_MODEL ?? DEFAULT_SEARCH_MODEL;
-      const response = await client.responses.create({
-        model,
-        tools: [{ type: "web_search" }],
-        input: query,
-      });
-      if (!response.output_text) {
-        return { success: false, error: "Web search returned no answer" };
+      try {
+        const answer = await searchWeb(query, client);
+        return { success: true, data: { answer } };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
       }
-      return { success: true, data: { answer: response.output_text } };
     },
   };
 }

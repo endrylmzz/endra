@@ -57,6 +57,32 @@ describe("OpenAIProvider", () => {
     expect(result.content).toBe("");
   });
 
+  it("always disables reasoning_effort, so hidden reasoning can't starve the visible output", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    await provider.generate({ messages: [{ role: "user", content: "hi" }] });
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ reasoning_effort: "none" }));
+  });
+
+  it("uses the default token budget unless the request overrides it", async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: "ok" } }],
+      model: "gpt-5.6",
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const provider = new OpenAIProvider({ client: fakeClient(create) });
+
+    await provider.generate({ messages: [{ role: "user", content: "hi" }], maxTokens: 4096 });
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ max_completion_tokens: 4096 }));
+  });
+
   it("sends tool definitions in OpenAI's function-calling format", async () => {
     const create = vi.fn().mockResolvedValue({
       choices: [{ message: { content: "ok" } }],

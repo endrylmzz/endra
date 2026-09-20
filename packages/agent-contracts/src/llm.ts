@@ -32,6 +32,10 @@ export interface LLMGenerateRequest {
   systemPrompt?: string;
   messages: LLMMessage[];
   tools?: LLMToolDefinition[];
+  /** Overrides the provider's default completion token budget - for
+   * calls whose expected output is long-form (e.g. a synthesized
+   * report) rather than a short reply or structured JSON. */
+  maxTokens?: number;
 }
 
 export interface LLMGenerateResponse {

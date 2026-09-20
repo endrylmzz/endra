@@ -30,6 +30,7 @@ import {
 } from "./builtin/price-alerts.js";
 import { createListCapabilitiesTool } from "./builtin/list-capabilities.js";
 import { createWebSearchTool } from "./builtin/web-search.js";
+import { createDeepResearchTool } from "./builtin/deep-research.js";
 import { createRunCodeTool } from "./builtin/run-code.js";
 import {
   createListCalendarEventsTool,
@@ -74,6 +75,7 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createListPriceAlertsTool());
     registry.register(createCancelPriceAlertTool());
     registry.register(createWebSearchTool());
+    registry.register(createDeepResearchTool());
     registry.register(createRunCodeTool());
     registry.register(createListCalendarEventsTool());
     registry.register(createCreateCalendarEventTool());

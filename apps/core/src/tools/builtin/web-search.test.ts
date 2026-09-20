@@ -1,6 +1,25 @@
 import { describe, expect, it, vi } from "vitest";
 import type OpenAI from "openai";
-import { createWebSearchTool } from "./web-search.js";
+import { createWebSearchTool, searchWeb } from "./web-search.js";
+
+describe("searchWeb", () => {
+  it("returns the hosted search's answer text", async () => {
+    const create = vi.fn().mockResolvedValue({ output_text: "cevap metni" });
+    const client = { responses: { create } } as unknown as OpenAI;
+
+    const result = await searchWeb("soru", client);
+
+    expect(result).toBe("cevap metni");
+  });
+
+  it("throws when there is no answer text", async () => {
+    const client = {
+      responses: { create: vi.fn().mockResolvedValue({ output_text: "" }) },
+    } as unknown as OpenAI;
+
+    await expect(searchWeb("soru", client)).rejects.toThrow("Web search returned no answer");
+  });
+});
 
 describe("createWebSearchTool", () => {
   it("is a read tool that never requires confirmation", () => {

@@ -67,17 +67,24 @@ export class OpenAIProvider implements LLMProvider {
 
     const response = await this.client.chat.completions.create({
       model: this.model,
-      max_completion_tokens: DEFAULT_MAX_TOKENS,
+      max_completion_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
+      // gpt-5.6 (a reasoning model) spends its completion-token budget on
+      // hidden reasoning before any visible output - with a long/complex
+      // input this can consume the entire budget and return empty content
+      // (confirmed live: a research-synthesis call hit finish_reason
+      // "length" with 0 visible chars, all 1024 tokens spent reasoning).
+      // It also rejects function tools together with its default
+      // reasoning_effort on /v1/chat/completions. Both are solved by
+      // always turning it off - none of ENDRA's calls need hidden
+      // reasoning enough to risk starving the actual output.
+      reasoning_effort: "none",
       messages: [
         ...(request.systemPrompt
           ? [{ role: "system" as const, content: request.systemPrompt }]
           : []),
         ...request.messages.map(toOpenAIMessage),
       ],
-      // gpt-5.6 (a reasoning model) rejects function tools together with
-      // its default reasoning_effort on /v1/chat/completions - has to be
-      // turned off explicitly when tools are present.
-      ...(tools && tools.length > 0 ? { tools, reasoning_effort: "none" } : {}),
+      ...(tools && tools.length > 0 ? { tools } : {}),
     });
 
     const message = response.choices[0]?.message;
