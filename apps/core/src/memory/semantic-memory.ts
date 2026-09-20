@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../db/supabase-client.js";
 import { embedText } from "./embeddings.js";
+import type { EntityType } from "./entities.js";
 
 export type MemoryType = "semantic" | "episodic" | "project" | "decision" | "task";
 
@@ -14,6 +15,9 @@ export interface MemoryCandidate {
   type: MemoryType;
   content: string;
   importance: number;
+  /** MEMORY-009: named entities mentioned in this candidate, for the
+   * promotion pipeline to link into `entities`/`memory_entities`. */
+  entities?: { name: string; type: EntityType }[];
 }
 
 export interface RankedMemory {

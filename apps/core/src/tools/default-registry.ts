@@ -48,6 +48,7 @@ import {
   createListPreferencesTool,
   createDeletePreferenceTool,
 } from "./builtin/preferences.js";
+import { createListEntitiesTool, createRecallAboutTool } from "./builtin/entities.js";
 
 let registry: ToolRegistry | undefined;
 export function getDefaultToolRegistry(): ToolRegistry {
@@ -88,6 +89,8 @@ export function getDefaultToolRegistry(): ToolRegistry {
     registry.register(createResolveDecisionTool());
     registry.register(createListMemoriesTool());
     registry.register(createDeleteMemoryTool());
+    registry.register(createListEntitiesTool());
+    registry.register(createRecallAboutTool());
     registry.register(createListCapabilitiesTool(registry));
   }
   return registry;

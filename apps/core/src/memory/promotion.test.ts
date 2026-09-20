@@ -26,7 +26,47 @@ describe("extractMemoryCandidates", () => {
     );
 
     expect(result).toEqual([
-      { type: "project", content: "Ender ENDRA projesini geliştiriyor", importance: 0.9 },
+      {
+        type: "project",
+        content: "Ender ENDRA projesini geliştiriyor",
+        importance: 0.9,
+        entities: [],
+      },
+    ]);
+  });
+
+  it("parses valid entities and sanitizes out malformed ones", async () => {
+    const llm = fakeLLM(
+      '[{"type":"semantic","content":"Ender İzmir\'e taşınmayı düşünüyor","importance":0.7,' +
+        '"entities":[{"name":"İzmir","type":"place"},{"name":"Ender","type":"person"},' +
+        '{"name":"kötü tip","type":"nonsense"},{"oops":true}]}]',
+    );
+
+    const result = await extractMemoryCandidates({ userMessage: "x", assistantMessage: "y" }, llm);
+
+    expect(result).toEqual([
+      {
+        type: "semantic",
+        content: "Ender İzmir'e taşınmayı düşünüyor",
+        importance: 0.7,
+        entities: [
+          { name: "İzmir", type: "place" },
+          { name: "Ender", type: "person" },
+        ],
+      },
+    ]);
+  });
+
+  it("defaults entities to an empty array when the field is missing or not an array", async () => {
+    const llm = fakeLLM(
+      '[{"type":"semantic","content":"a","importance":0.5},{"type":"semantic","content":"b","importance":0.5,"entities":"oops"}]',
+    );
+
+    const result = await extractMemoryCandidates({ userMessage: "x", assistantMessage: "y" }, llm);
+
+    expect(result).toEqual([
+      { type: "semantic", content: "a", importance: 0.5, entities: [] },
+      { type: "semantic", content: "b", importance: 0.5, entities: [] },
     ]);
   });
 
@@ -54,7 +94,9 @@ describe("extractMemoryCandidates", () => {
 
     const result = await extractMemoryCandidates({ userMessage: "x", assistantMessage: "y" }, llm);
 
-    expect(result).toEqual([{ type: "semantic", content: "geçerli", importance: 0.5 }]);
+    expect(result).toEqual([
+      { type: "semantic", content: "geçerli", importance: 0.5, entities: [] },
+    ]);
   });
 });
 
@@ -109,6 +151,120 @@ describe("promoteMemories", () => {
     );
 
     expect(insertCalls).toHaveLength(0);
+  });
+
+  it("links a saved memory to each of its entities, creating them if new", async () => {
+    const entityUpserts: unknown[] = [];
+    const linkUpserts: unknown[] = [];
+    const client = {
+      rpc: vi.fn((fnName: string) => {
+        if (fnName === "find_similar_memory") return Promise.resolve({ data: [], error: null });
+        if (fnName === "find_related_memories") return Promise.resolve({ data: [], error: null });
+        throw new Error(`unexpected rpc ${fnName}`);
+      }),
+      from: (table: string) => {
+        if (table === "memories") {
+          return {
+            insert: () => ({
+              select: () => ({ single: async () => ({ data: { id: "mem-new" }, error: null }) }),
+            }),
+          };
+        }
+        if (table === "entities") {
+          return {
+            upsert: (values: unknown) => {
+              entityUpserts.push(values);
+              return {
+                select: () => ({
+                  single: async () => ({
+                    data: { id: `entity-${(values as { name: string }).name}` },
+                    error: null,
+                  }),
+                }),
+              };
+            },
+          };
+        }
+        if (table === "memory_entities") {
+          return {
+            upsert: (values: unknown) => {
+              linkUpserts.push(values);
+              return { error: null };
+            },
+          };
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    } as unknown as SupabaseClient;
+
+    await promoteMemories(
+      "user-1",
+      [
+        {
+          type: "semantic",
+          content: "Ender İzmir'e taşınmayı düşünüyor",
+          importance: 0.7,
+          entities: [
+            { name: "İzmir", type: "place" },
+            { name: "Ender", type: "person" },
+          ],
+        },
+      ],
+      client,
+      fakeEmbed,
+    );
+
+    expect(entityUpserts).toEqual([
+      { user_id: "user-1", name: "İzmir", normalized_name: "izmir", type: "place" },
+      { user_id: "user-1", name: "Ender", normalized_name: "ender", type: "person" },
+    ]);
+    expect(linkUpserts).toEqual([
+      { memory_id: "mem-new", entity_id: "entity-İzmir" },
+      { memory_id: "mem-new", entity_id: "entity-Ender" },
+    ]);
+  });
+
+  it("still saves the memory even if entity linking throws", async () => {
+    const client = {
+      rpc: vi.fn((fnName: string) => {
+        if (fnName === "find_similar_memory") return Promise.resolve({ data: [], error: null });
+        if (fnName === "find_related_memories") return Promise.resolve({ data: [], error: null });
+        throw new Error(`unexpected rpc ${fnName}`);
+      }),
+      from: (table: string) => {
+        if (table === "memories") {
+          return {
+            insert: () => ({
+              select: () => ({ single: async () => ({ data: { id: "mem-new" }, error: null }) }),
+            }),
+          };
+        }
+        if (table === "entities") {
+          return {
+            upsert: () => ({
+              select: () => ({ single: async () => Promise.reject(new Error("db down")) }),
+            }),
+          };
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    } as unknown as SupabaseClient;
+
+    await expect(
+      promoteMemories(
+        "user-1",
+        [
+          {
+            type: "semantic",
+            content: "yeni bilgi",
+            importance: 0.6,
+            entities: [{ name: "biri", type: "person" }],
+          },
+        ],
+        client,
+        fakeEmbed,
+      ),
+    ).resolves.toBeUndefined();
   });
 
   function fakeClientWithRelated(relatedData: unknown[]) {

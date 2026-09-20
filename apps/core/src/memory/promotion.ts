@@ -15,11 +15,16 @@ import {
   type MemoryCandidate,
 } from "./semantic-memory.js";
 import { getPreference, setPreference } from "./preferences.js";
+import { findOrCreateEntity, linkMemoryToEntity, type EntityType } from "./entities.js";
 import { OpenAIProvider } from "../llm/openai-provider.js";
+
+const ENTITY_TYPES = ["person", "place", "project", "organization", "other"] as const;
 
 const EXTRACTION_SYSTEM_PROMPT = `You extract long-term memory candidates from a single conversation exchange for ENDRA, a personal AI assistant. Only extract facts, preferences, decisions, or ongoing projects worth remembering across future conversations - not small talk, greetings, or one-off questions with no lasting relevance.
 
-Respond with ONLY a JSON array (no prose, no markdown fences). Each item: {"type": "semantic"|"episodic"|"project"|"decision"|"task", "content": string, "importance": number between 0 and 1}. If nothing is worth remembering, respond with exactly [].`;
+For each candidate, also list the named entities (people, places, projects, organizations) it mentions - this builds a structured index the assistant can later query ("what have we discussed about X").
+
+Respond with ONLY a JSON array (no prose, no markdown fences). Each item: {"type": "semantic"|"episodic"|"project"|"decision"|"task", "content": string, "importance": number between 0 and 1, "entities": [{"name": string, "type": "person"|"place"|"project"|"organization"|"other"}]}. "entities" may be an empty array. If nothing is worth remembering, respond with exactly [].`;
 
 export async function extractMemoryCandidates(
   exchange: { userMessage: string; assistantMessage: string },
@@ -38,7 +43,10 @@ export async function extractMemoryCandidates(
   try {
     const parsed: unknown = JSON.parse(response.content);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidCandidate);
+    return parsed.filter(isValidCandidate).map((candidate) => ({
+      ...candidate,
+      entities: sanitizeEntities(candidate.entities),
+    }));
   } catch {
     return [];
   }
@@ -51,6 +59,24 @@ function isValidCandidate(value: unknown): value is MemoryCandidate {
     typeof candidate.type === "string" &&
     typeof candidate.content === "string" &&
     typeof candidate.importance === "number"
+  );
+}
+
+function isValidEntityType(value: unknown): value is EntityType {
+  return typeof value === "string" && (ENTITY_TYPES as readonly string[]).includes(value);
+}
+
+// The core candidate (type/content/importance) is rejected wholesale if
+// malformed - entities are supplementary, so a malformed entry there
+// is just dropped rather than losing the whole memory over it.
+function sanitizeEntities(value: unknown): { name: string; type: EntityType }[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (e): e is { name: string; type: EntityType } =>
+      typeof e === "object" &&
+      e !== null &&
+      typeof (e as Record<string, unknown>).name === "string" &&
+      isValidEntityType((e as Record<string, unknown>).type),
   );
 }
 
@@ -129,6 +155,17 @@ export async function promoteMemories(
     const duplicate = await findSimilarMemory(userId, candidate.content, client, embed);
     if (duplicate) continue;
     const savedId = await saveMemory(userId, candidate, client, embed);
+
+    if (candidate.entities && candidate.entities.length > 0) {
+      try {
+        for (const entity of candidate.entities) {
+          const entityId = await findOrCreateEntity(userId, entity.name, entity.type, client);
+          await linkMemoryToEntity(savedId, entityId, client);
+        }
+      } catch (err) {
+        console.error("Entity linking failed:", err);
+      }
+    }
 
     try {
       const related = await findRelatedMemories(userId, candidate.content, savedId, client, embed);
