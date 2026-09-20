@@ -17,15 +17,12 @@ Phases 1-7 were already done before this batch, so nothing in
 Goal:
 There is no more "obvious next roadmap item" - Phase 8 (Web/PWA) and
 Phase 9 (Desktop) remain, both explicitly out of scope per CLAUDE.md
-section 14 until Ender explicitly asks. Next session should:
-
-1. When it comes up naturally, a light real-world check that the new
-   proactive behaviors actually fire in production (a digest arriving,
-   an ambient notification, a volunteered memory connection) would be
-   worth more confidence than the pre-deploy live checks alone - but
-   don't go looking for a task just to do this.
-2. Otherwise, ask Ender directly what he wants next rather than
-   assuming - the natural backlog is exhausted again.
+section 14 until Ender explicitly asks. Real-world confirmation that
+the new proactive behaviors actually fire in production is already
+in: Ender confirmed the morning digest arrived for real on 2026-09-20,
+no issues noticed. Next session should just ask Ender directly what he
+wants next rather than assuming - the natural backlog is exhausted
+again.
 
 ## Open items (not blocking)
 
